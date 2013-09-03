@@ -10,7 +10,9 @@
 //      https://github.com/zeromq/czmq
 //
 // Instead of ZMQ_PEER socket it uses go channel and also uses go routine
-// instead of zthread.
+// instead of zthread. To simplify the implementation it doesn't pass API
+// calls through the pipe (as zbeacon does) instead it modifies beacon
+// struct directly.
 //
 package beacon
 
