@@ -15,7 +15,7 @@ func TestBeacon(t *testing.T) {
 	select {
 	case <-time.After(1 * time.Second):
 		t.Fatalf("expected to receive a signal but got nothing!")
-	case signal := <-b.Signals():
+	case signal := <-b.Chan():
 		if !bytes.Equal(transmit, signal.Transmit) {
 			t.Fatalf("expected % X, got % X", transmit, signal.Transmit)
 		}
@@ -25,7 +25,7 @@ func TestBeacon(t *testing.T) {
 
 	select {
 	case <-time.After(300 * time.Millisecond):
-	case signal := <-b.Signals():
+	case signal := <-b.Chan():
 		t.Fatalf("expected silence, got %v", signal)
 	}
 
@@ -33,7 +33,7 @@ func TestBeacon(t *testing.T) {
 
 	select {
 	case <-time.After(300 * time.Millisecond):
-	case signal := <-b.Signals():
+	case signal := <-b.Chan():
 		t.Fatalf("expected to not recive an echo, got %q, %q", signal.Addr, signal.Transmit)
 	}
 
@@ -41,9 +41,9 @@ func TestBeacon(t *testing.T) {
 	select {
 	case <-time.After(1 * time.Second):
 		t.Fatalf("expected to receive a close signal but got nothing!")
-	case _, ok := <-b.Signals():
+	case _, ok := <-b.Chan():
 		if ok {
-			t.Fatalf("Signals() is not closed!")
+			t.Fatalf("Chan() is not closed!")
 		}
 	}
 
@@ -65,17 +65,17 @@ func TestBeacon(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		select {
-		case signal := <-node1.Signals():
+		case signal := <-node1.Chan():
 			expected := []byte("NODE/2")
 			if !bytes.Equal(expected, signal.Transmit) {
 				t.Fatalf("expected %s, got %s", expected, signal.Transmit)
 			}
-		case signal := <-node2.Signals():
+		case signal := <-node2.Chan():
 			expected := []byte("NODE/1")
 			if !bytes.Equal(expected, signal.Transmit) {
 				t.Fatalf("expected %s, got %s", expected, signal.Transmit)
 			}
-		case signal := <-node3.Signals():
+		case signal := <-node3.Chan():
 			t.Fatalf("not expected to recieve any signal from node3, got %q, %q", signal.Addr, signal.Transmit)
 		}
 		time.Sleep(25 * time.Millisecond)

@@ -32,23 +32,23 @@ type Signal struct {
 	Transmit []byte
 }
 
-type beacon struct {
-	signals    chan *Signal
+type Beacon struct {
+	Signals    chan *Signal
+	Interval   time.Duration
+	Hostname   string
+	Addr       string
+	Port       int
 	ticker     <-chan time.Time
 	conn       *net.UDPConn
-	interval   time.Duration
 	noecho     bool
 	terminated bool
 	transmit   []byte
 	filter     []byte
-	addr       string
-	port       int
 	broadcast  string // TODO: need to figure out the broadcast address
-	hostname   string
 }
 
 // New creates a new beacon
-func New(port int) (*beacon, error) {
+func New(port int) (*Beacon, error) {
 
 	bcast := &net.UDPAddr{Port: port, IP: net.IPv4bcast}
 	conn, err := net.ListenUDP("udp", bcast)
@@ -65,13 +65,13 @@ func New(port int) (*beacon, error) {
 		hostname = addr
 	}
 
-	b := &beacon{
-		signals:  make(chan *Signal),
+	b := &Beacon{
+		Signals:  make(chan *Signal),
+		Interval: defaultInterval,
+		Hostname: hostname,
+		Addr:     addr,
+		Port:     port,
 		conn:     conn,
-		interval: defaultInterval,
-		hostname: hostname,
-		addr:     addr,
-		port:     port,
 	}
 
 	go b.listen()
@@ -81,63 +81,58 @@ func New(port int) (*beacon, error) {
 }
 
 // Close terminates the beacon
-func (b *beacon) Close() {
+func (b *Beacon) Close() {
 	b.terminated = true
-	close(b.signals)
+	close(b.Signals)
 }
 
 // SetInterval sets broadcast interval
-func (b *beacon) SetInterval(interval time.Duration) *beacon {
-	b.interval = interval
+func (b *Beacon) SetInterval(interval time.Duration) *Beacon {
+	b.Interval = interval
 	return b
 }
 
 // NoEcho filters out any beacon that looks exactly like ours
-func (b *beacon) NoEcho() *beacon {
+func (b *Beacon) NoEcho() *Beacon {
 	b.noecho = true
 	return b
 }
 
 // Publish starts broadcasting beacon to peers at the specified interval
-func (b *beacon) Publish(transmit []byte) *beacon {
+func (b *Beacon) Publish(transmit []byte) *Beacon {
 	b.transmit = transmit
-	if b.interval == 0 {
+	if b.Interval == 0 {
 		b.ticker = time.After(defaultInterval)
 	} else {
-		b.ticker = time.After(b.interval)
+		b.ticker = time.After(b.Interval)
 	}
 	return b
 }
 
 // Silence stops broadcasting beacon
-func (b *beacon) Silence() *beacon {
+func (b *Beacon) Silence() *Beacon {
 	b.transmit = nil
 	return b
 }
 
 // Subscribe starts listening to other peers; zero-sized filter means get everything
-func (b *beacon) Subscribe(filter []byte) *beacon {
+func (b *Beacon) Subscribe(filter []byte) *Beacon {
 	b.filter = filter
 	return b
 }
 
 // Unsubscribe stops listening to other peers
-func (b *beacon) Unsubscribe() *beacon {
+func (b *Beacon) Unsubscribe() *Beacon {
 	b.filter = nil
 	return b
 }
 
-// Hostname returns our own IP address as printable string
-func (b *beacon) Hostname() string {
-	return b.hostname
+// Chan returns Signals channel
+func (b *Beacon) Chan() chan *Signal {
+	return b.Signals
 }
 
-// Signals returns signals channel
-func (b *beacon) Signals() chan *Signal {
-	return b.signals
-}
-
-func (b *beacon) listen() {
+func (b *Beacon) listen() {
 	for {
 		buff := make([]byte, beaconMax)
 		n, addr, err := b.conn.ReadFrom(buff)
@@ -151,13 +146,13 @@ func (b *beacon) listen() {
 		}
 
 		if send {
-			// Received a signal, send it to the signals channel
-			b.signals <- &Signal{addr.String(), buff[:n]}
+			// Received a signal, send it to the Signals channel
+			b.Signals <- &Signal{addr.String(), buff[:n]}
 		}
 	}
 }
 
-func (b *beacon) signal() {
+func (b *Beacon) signal() {
 	for {
 		select {
 		case <-b.ticker:
@@ -166,10 +161,10 @@ func (b *beacon) signal() {
 			}
 			if b.transmit != nil {
 				// Signal other beacons
-				bcast := &net.UDPAddr{Port: b.port, IP: net.IPv4bcast}
+				bcast := &net.UDPAddr{Port: b.Port, IP: net.IPv4bcast}
 				b.conn.WriteTo(b.transmit, bcast)
 			}
-			b.ticker = time.After(b.interval)
+			b.ticker = time.After(b.Interval)
 		}
 	}
 }
