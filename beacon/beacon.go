@@ -72,8 +72,8 @@ func New(port int) (*beacon, error) {
 		port:     port,
 	}
 
-	go b.beaconReader()
-	go b.handle()
+	go b.listen()
+	go b.signal()
 
 	return b, nil
 }
@@ -135,7 +135,7 @@ func (b *beacon) Signals() chan *Signal {
 	return b.signals
 }
 
-func (b *beacon) beaconReader() {
+func (b *beacon) listen() {
 	for {
 		buff := make([]byte, beaconMax)
 		n, addr, err := b.conn.ReadFrom(buff)
@@ -149,27 +149,25 @@ func (b *beacon) beaconReader() {
 		}
 
 		if send {
+			// Received a signal, send it to the signals channel
 			b.signals <- &Signal{addr.String(), buff[:n]}
 		}
 	}
 }
 
-func (b *beacon) handle() {
+func (b *beacon) signal() {
 	for {
 		select {
 		case <-b.ticker:
 			if b.terminated {
 				break
 			}
-			b.send()
+			if b.transmit != nil {
+				// Signal other beacons
+				bcast := &net.UDPAddr{Port: b.port, IP: net.IPv4bcast}
+				b.conn.WriteTo(b.transmit, bcast)
+			}
 			b.ticker = time.After(b.interval)
 		}
-	}
-}
-
-func (b *beacon) send() {
-	if b.transmit != nil {
-		bcast := &net.UDPAddr{Port: b.port, IP: net.IPv4bcast}
-		b.conn.WriteTo(b.transmit, bcast)
 	}
 }
