@@ -1,0 +1,9 @@
+Grab the latest version of gsl from:
+
+	git clone git://github.com/imatix/gsl
+
+Then compile it:
+
+	cd gsl/src
+	make
+	sudo make install
