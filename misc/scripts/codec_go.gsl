@@ -81,7 +81,7 @@ const (
 
 // $(string.trim (.?''):left)
 type $(struct:no) struct {
-	$("Address"%-$(max_length + 1)s)[]byte
+	$("address"%-$(max_length + 1)s)[]byte
 .for field
 	$(name:no%-$(max_length + 1)s)$(gotype)
 .endfor
@@ -261,7 +261,7 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socket.GetType() == zmq.Router {
-		err = socket.SendPart($(self).Address, true)
+		err = socket.SendPart($(self).address, true)
 		if err != nil {
 			return err
 		}
@@ -290,10 +290,16 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
+// Address returns the address for this message, address should is set
+// whenever talking to a ROUTER
+func ($(self) *$(struct:no)) Address() []byte {
+	return $(self).address
+}
+
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER
 func ($(self) *$(struct:no)) SetAddress(address []byte) {
-	$(self).Address = address
+	$(self).address = address
 }
 .for field as f
 .    for class.header
@@ -443,6 +449,7 @@ type Transit interface {
 	Unmarshal([][]byte) error
 	String() string
 	SetAddress([]byte)
+	Address() []byte
 	Send(*zmq.Socket) error
 .for field as f
 .    for class.header

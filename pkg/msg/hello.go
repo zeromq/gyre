@@ -14,7 +14,7 @@ const (
 
 // Greet a peer so it can connect back to us
 type Hello struct {
-	Address   []byte
+	address   []byte
 	Sequence  uint16
 	Ipaddress string
 	Mailbox   uint16
@@ -159,7 +159,7 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(h.Address, true)
+		err = socket.SendPart(h.address, true)
 		if err != nil {
 			return err
 		}
@@ -174,10 +174,16 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
+// Address returns the address for this message, address should is set
+// whenever talking to a ROUTER
+func (h *Hello) Address() []byte {
+	return h.address
+}
+
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER
 func (h *Hello) SetAddress(address []byte) {
-	h.Address = address
+	h.address = address
 }
 
 // SetSequence sets Sequence

@@ -14,7 +14,7 @@ const (
 
 // Leave a group
 type Leave struct {
-	Address  []byte
+	address  []byte
 	Sequence uint16
 	Group    string
 	Status   byte
@@ -106,7 +106,7 @@ func (l *Leave) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(l.Address, true)
+		err = socket.SendPart(l.address, true)
 		if err != nil {
 			return err
 		}
@@ -121,10 +121,16 @@ func (l *Leave) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
+// Address returns the address for this message, address should is set
+// whenever talking to a ROUTER
+func (l *Leave) Address() []byte {
+	return l.address
+}
+
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER
 func (l *Leave) SetAddress(address []byte) {
-	l.Address = address
+	l.address = address
 }
 
 // SetSequence sets Sequence

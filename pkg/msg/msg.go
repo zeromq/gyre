@@ -21,6 +21,7 @@ type Transit interface {
 	Unmarshal([][]byte) error
 	String() string
 	SetAddress([]byte)
+	Address() []byte
 	Send(*zmq.Socket) error
 	SetSequence(uint16)
 }

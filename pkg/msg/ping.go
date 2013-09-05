@@ -14,7 +14,7 @@ const (
 
 // Ping a peer that has gone silent
 type Ping struct {
-	Address  []byte
+	address  []byte
 	Sequence uint16
 }
 
@@ -85,7 +85,7 @@ func (p *Ping) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(p.Address, true)
+		err = socket.SendPart(p.address, true)
 		if err != nil {
 			return err
 		}
@@ -100,10 +100,16 @@ func (p *Ping) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
+// Address returns the address for this message, address should is set
+// whenever talking to a ROUTER
+func (p *Ping) Address() []byte {
+	return p.address
+}
+
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER
 func (p *Ping) SetAddress(address []byte) {
-	p.Address = address
+	p.address = address
 }
 
 // SetSequence sets Sequence
