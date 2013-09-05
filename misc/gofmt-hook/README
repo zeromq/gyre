@@ -1,0 +1,5 @@
+Grab the latest one from:
+
+    wget -q https://raw.github.com/edsrzf/gofmt-git-hook/master/fmt-check -O /tmp/pre-commit
+
+Then replace current one with /tmp/pre-commit
