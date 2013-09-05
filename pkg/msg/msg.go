@@ -27,36 +27,44 @@ type Transit interface {
 
 // Recv receives marshaled data from 0mq socket
 func Recv(socket *zmq.Socket) (t Transit, err error) {
-	var (
-		buffer  *bytes.Buffer
-		address []byte
-		frames  [][]byte
-	)
-
 	// Read valid message frame from socket; we loop over any
 	// garbage data we might receive from badly-connected peers
 	for {
 		// Read all frames
-		frames, err = socket.Recv()
+		frames, err := socket.Recv()
 		if err != nil {
 			return nil, err
 		}
-		// If we're reading from a ROUTER socket, get address
-		if socket.GetType() == zmq.Router {
-			if len(frames) <= 1 {
-				return nil, errors.New("malformed message")
-			}
-			address = frames[0]
-			frames = frames[1:]
+		t, err := RecvRaw(frames, socket.GetType())
+		if err != nil {
+			continue
 		}
-		// Check the signature
-		var signature uint16
-		buffer = bytes.NewBuffer(frames[0])
-		binary.Read(buffer, binary.BigEndian, &signature)
-		if signature == Signature {
-			// Valid signature
-			break
+		return t, err
+	}
+}
+
+// RecvRaw receives marshaled data from raw frames
+func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
+	var (
+		buffer  *bytes.Buffer
+		address []byte
+	)
+
+	// If we're reading from a ROUTER socket, get address
+	if sType == zmq.Router {
+		if len(frames) <= 1 {
+			return nil, errors.New("malformed message")
 		}
+		address = frames[0]
+		frames = frames[1:]
+	}
+	// Check the signature
+	var signature uint16
+	buffer = bytes.NewBuffer(frames[0])
+	binary.Read(buffer, binary.BigEndian, &signature)
+	if signature != Signature {
+		// Invalid signature
+		return nil, errors.New("malformed message")
 	}
 
 	// Get message id and parse per message type
@@ -83,6 +91,65 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 	err = t.Unmarshal(frames)
 
 	return t, err
+}
+
+// Clone clones a message
+func Clone(t Transit) Transit {
+	switch msg := t.(type) {
+	case *Hello:
+		cloned := NewHello()
+		cloned.Sequence = msg.Sequence
+		cloned.Ipaddress = msg.Ipaddress
+		cloned.Mailbox = msg.Mailbox
+		for idx, str := range msg.Groups {
+			cloned.Groups[idx] = str
+		}
+		cloned.Status = msg.Status
+		for key, val := range msg.Headers {
+			cloned.Headers[key] = val
+		}
+		return cloned
+
+	case *Whisper:
+		cloned := NewWhisper()
+		cloned.Sequence = msg.Sequence
+		cloned.Content = append(cloned.Content, msg.Content...)
+		return cloned
+
+	case *Shout:
+		cloned := NewShout()
+		cloned.Sequence = msg.Sequence
+		cloned.Group = msg.Group
+		cloned.Content = append(cloned.Content, msg.Content...)
+		return cloned
+
+	case *Join:
+		cloned := NewJoin()
+		cloned.Sequence = msg.Sequence
+		cloned.Group = msg.Group
+		cloned.Status = msg.Status
+		return cloned
+
+	case *Leave:
+		cloned := NewLeave()
+		cloned.Sequence = msg.Sequence
+		cloned.Group = msg.Group
+		cloned.Status = msg.Status
+		return cloned
+
+	case *Ping:
+		cloned := NewPing()
+		cloned.Sequence = msg.Sequence
+		return cloned
+
+	case *PingOk:
+		cloned := NewPingOk()
+		cloned.Sequence = msg.Sequence
+		return cloned
+
+	}
+
+	return nil
 }
 
 // putString marshals a string into the buffer
