@@ -15,7 +15,7 @@ const (
 // Send a message to a group
 type Shout struct {
 	address  []byte
-	Sequence uint16
+	sequence uint16
 	Group    string
 	Content  []byte
 }
@@ -51,7 +51,7 @@ func (s *Shout) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, ShoutId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, s.Sequence)
+	binary.Write(buffer, binary.BigEndian, s.Sequence())
 
 	// Group
 	putString(buffer, s.Group)
@@ -80,7 +80,7 @@ func (s *Shout) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &s.Sequence)
+	binary.Read(buffer, binary.BigEndian, &s.sequence)
 
 	// Group
 	s.Group = getString(buffer)
@@ -129,7 +129,12 @@ func (s *Shout) SetAddress(address []byte) {
 	s.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (s *Shout) SetSequence(sequence uint16) {
-	s.Sequence = sequence
+	s.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (s *Shout) Sequence() uint16 {
+	return s.sequence
 }

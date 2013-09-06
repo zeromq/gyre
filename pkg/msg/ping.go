@@ -15,7 +15,7 @@ const (
 // Ping a peer that has gone silent
 type Ping struct {
 	address  []byte
-	Sequence uint16
+	sequence uint16
 }
 
 // New creates new Ping message
@@ -45,7 +45,7 @@ func (p *Ping) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, PingId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, p.Sequence)
+	binary.Write(buffer, binary.BigEndian, p.Sequence())
 
 	return buffer.Bytes(), nil
 }
@@ -71,7 +71,7 @@ func (p *Ping) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &p.Sequence)
+	binary.Read(buffer, binary.BigEndian, &p.sequence)
 
 	return nil
 }
@@ -112,7 +112,12 @@ func (p *Ping) SetAddress(address []byte) {
 	p.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (p *Ping) SetSequence(sequence uint16) {
-	p.Sequence = sequence
+	p.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (p *Ping) Sequence() uint16 {
+	return p.sequence
 }

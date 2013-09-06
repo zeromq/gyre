@@ -17,6 +17,8 @@ func TestHello(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	address := []byte("Shout")
+	output.SetIdentitiy(address)
 	err = output.Bind("inproc://selftest")
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +35,7 @@ func TestHello(t *testing.T) {
 	}
 	// Create a Hello message and send it through the wire
 	hello := NewHello()
-	hello.Sequence = 123
+	hello.SetSequence(123)
 	hello.Ipaddress = "Life is short but Now lasts for ever"
 	hello.Mailbox = 123
 	hello.Groups = []string{"Name: Brutus", "Age: 43"}
@@ -51,8 +53,8 @@ func TestHello(t *testing.T) {
 	}
 
 	msg := transit.(*Hello)
-	if msg.Sequence != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Sequence)
+	if msg.Sequence() != 123 {
+		t.Fatalf("expected %d, got %d", 123, msg.Sequence())
 	}
 	if msg.Ipaddress != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.Ipaddress)
@@ -72,5 +74,17 @@ func TestHello(t *testing.T) {
 		if msg.Headers[key] != val {
 			t.Fatalf("expected %s, got %s", val, msg.Headers[key])
 		}
+	}
+
+	err = msg.Send(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transit, err = Recv(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(address) != string(msg.Address()) {
+		t.Fatalf("expected %v, got %v", address, msg.Address())
 	}
 }

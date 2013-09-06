@@ -15,7 +15,7 @@ const (
 // Join a group
 type Join struct {
 	address  []byte
-	Sequence uint16
+	sequence uint16
 	Group    string
 	Status   byte
 }
@@ -54,7 +54,7 @@ func (j *Join) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, JoinId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, j.Sequence)
+	binary.Write(buffer, binary.BigEndian, j.Sequence())
 
 	// Group
 	putString(buffer, j.Group)
@@ -86,7 +86,7 @@ func (j *Join) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &j.Sequence)
+	binary.Read(buffer, binary.BigEndian, &j.sequence)
 
 	// Group
 	j.Group = getString(buffer)
@@ -133,7 +133,12 @@ func (j *Join) SetAddress(address []byte) {
 	j.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (j *Join) SetSequence(sequence uint16) {
-	j.Sequence = sequence
+	j.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (j *Join) Sequence() uint16 {
+	return j.sequence
 }

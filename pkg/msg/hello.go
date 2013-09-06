@@ -15,7 +15,7 @@ const (
 // Greet a peer so it can connect back to us
 type Hello struct {
 	address   []byte
-	Sequence  uint16
+	sequence  uint16
 	Ipaddress string
 	Mailbox   uint16
 	Groups    []string
@@ -74,7 +74,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, HelloId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, h.Sequence)
+	binary.Write(buffer, binary.BigEndian, h.Sequence())
 
 	// Ipaddress
 	putString(buffer, h.Ipaddress)
@@ -121,7 +121,7 @@ func (h *Hello) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &h.Sequence)
+	binary.Read(buffer, binary.BigEndian, &h.sequence)
 
 	// Ipaddress
 	h.Ipaddress = getString(buffer)
@@ -186,7 +186,12 @@ func (h *Hello) SetAddress(address []byte) {
 	h.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (h *Hello) SetSequence(sequence uint16) {
-	h.Sequence = sequence
+	h.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (h *Hello) Sequence() uint16 {
+	return h.sequence
 }

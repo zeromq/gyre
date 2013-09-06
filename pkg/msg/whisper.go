@@ -15,7 +15,7 @@ const (
 // Send a message to a peer
 type Whisper struct {
 	address  []byte
-	Sequence uint16
+	sequence uint16
 	Content  []byte
 }
 
@@ -46,7 +46,7 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, WhisperId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, w.Sequence)
+	binary.Write(buffer, binary.BigEndian, w.Sequence())
 
 	return buffer.Bytes(), nil
 }
@@ -72,7 +72,7 @@ func (w *Whisper) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &w.Sequence)
+	binary.Read(buffer, binary.BigEndian, &w.sequence)
 
 	// Content
 	w.Content = frames[0]
@@ -118,7 +118,12 @@ func (w *Whisper) SetAddress(address []byte) {
 	w.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (w *Whisper) SetSequence(sequence uint16) {
-	w.Sequence = sequence
+	w.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (w *Whisper) Sequence() uint16 {
+	return w.sequence
 }

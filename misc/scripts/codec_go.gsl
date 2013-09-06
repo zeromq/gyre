@@ -9,12 +9,14 @@
 .   for field where item() = 1
 .       for class.header
 .           for field as hfield
+.               hfield.header = "true"
 .               copy hfield before field
 .           endfor
 .       endfor
 .   else
 .       for class.header
 .           for field as hfield
+.               hfield.header = "true"
 .               copy hfield to message
 .           endfor
 .       endfor
@@ -83,7 +85,8 @@ const (
 type $(struct:no) struct {
 	$("address"%-$(max_length + 1)s)[]byte
 .for field
-	$(name:no%-$(max_length + 1)s)$(gotype)
+.    fname = defined(header) ?? "$(name)" ? "$(name:no)"
+	$(fname:no%-$(max_length + 1)s)$(gotype)
 .endfor
 }
 .self = string.substr(name,0,0)
@@ -107,6 +110,7 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
 .for field
+.    fname = defined(header) ?? "$(name:no)()" ? "$(name:no)"
 .    if type = "number"
 
 	// $(name:no) is a $(size)-byte integer
@@ -122,21 +126,21 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	bufferSize += 1 + len("$(field.value:)")
 .        else
 	bufferSize++ // Size is one byte
-	bufferSize += len($(self).$(name:no))
+	bufferSize += len($(self).$(fname:no))
 .        endif
 .    elsif type = "strings"
 
 	// $(name:no) is an array of strings
 	bufferSize++ // Size is one byte
 	// Add up size of list contents
-	for _, val := range $(self).$(name:no) {
+	for _, val := range $(self).$(fname:no) {
 		bufferSize += 1 + len(val)
 	}
 .    elsif type = "dictionary"
 
 	// $(name:no) is an array of key=value strings
 	bufferSize++ // Size is one byte
-	for _, val := range $(self).$(name:no) {
+	for _, val := range $(self).$(fname:no) {
 		bufferSize += 1 + len(val)
 	}
 .    endif
@@ -149,38 +153,39 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, Signature)
 	binary.Write(buffer, binary.BigEndian, $(struct:no)Id)
 .for field
+.    fname = defined(header) ?? "$(name:no)()" ? "$(name:no)"
 .    if type = "number"
 
 	// $(name:no)
 .        if defined (field.value)
 	binary.Write(buffer, binary.BigEndian, "$(field.value:)")
 .        else
-	binary.Write(buffer, binary.BigEndian, $(self).$(name:no))
+	binary.Write(buffer, binary.BigEndian, $(self).$(fname:no))
 .        endif
 .    elsif type = "octets"
 
 	// $(name:no)
-	binary.Write(buffer, binary.BigEndian, $(self).$(name:no))
+	binary.Write(buffer, binary.BigEndian, $(self).$(fname:no))
 .    elsif type = "string"
 
 	// $(name:no)
 .        if defined (field.value)
 	putString(buffer, "$(field.value:)")
 .        else
-	putString(buffer, $(self).$(name:no))
+	putString(buffer, $(self).$(fname:no))
 .        endif
 .    elsif type = "strings"
 
 	// $(name:no)
-	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(name:no))))
-	for _, val := range $(self).$(name:no) {
+	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(fname:no))))
+	for _, val := range $(self).$(fname:no) {
 		putString(buffer, val)
 	}
 .    elsif type = "dictionary"
 
 	// $(name:no)
-	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(name:no))))
-	for key, val := range $(self).$(name:no) {
+	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(fname:no))))
+	for key, val := range $(self).$(fname:no) {
 		putKeyValString(buffer, key, val)
 	}
 .    endif
@@ -210,41 +215,42 @@ func ($(self) *$(struct:no)) Unmarshal(frames [][]byte) error {
 	}
 .frames = 0
 .for field
+.    fname = defined(header) ?? "$(name)" ? "$(name:no)"
 
 	// $(name:no)
 .    if type = "number"
-	binary.Read(buffer, binary.BigEndian, &$(self).$(name:no))
+	binary.Read(buffer, binary.BigEndian, &$(self).$(fname:no))
 .        if defined (field.value)
-	if $(self).$(name:no) != $(field.value:) {
+	if $(self).$(fname:no) != $(field.value:) {
 		return errors.New("malformed message")
 	}
 .        endif
 .    elsif type = "octets"
-	binary.Read(buffer, binary.BigEndian, &$(self).$(name:no))
+	binary.Read(buffer, binary.BigEndian, &$(self).$(fname:no))
 .    elsif type = "string"
-	$(self).$(name:no) = getString(buffer)
+	$(self).$(fname:no) = getString(buffer)
 .        if defined (field.value)
-	if $(self).$(name:no) != "$(field.value:)" {
+	if $(self).$(fname:no) != "$(field.value:)" {
 		return errors.New("malformed message")
 	}
 .        endif
 .    elsif type = "strings"
-.        size = "$(name)Size"
+.        size = "$(fname)Size"
 	var $(size:no) byte
 	binary.Read(buffer, binary.BigEndian, &$(size:no))
 	for ; $(size:no) != 0; $(size:no)-- {
-		$(self).$(name:no) = append($(self).$(name:no), getString(buffer))
+		$(self).$(fname:no) = append($(self).$(fname:no), getString(buffer))
 	}
 .    elsif type = "dictionary"
-.        size = "$(name)Size"
+.        size = "$(fname)Size"
 	var $(size:no) byte
 	binary.Read(buffer, binary.BigEndian, &$(size:no))
 	for ; $(size:no) != 0; $(size:no)-- {
 		key, val := getKeyValString(buffer)
-		$(self).$(name:no)[key] = val
+		$(self).$(fname:no)[key] = val
 	}
 .    elsif type = "frame"
-	$(self).$(name:no) = frames[$(frames)]
+	$(self).$(fname:no) = frames[$(frames)]
 .    frames = frames + 1
 .    endif
 .endfor
@@ -280,10 +286,11 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 	// Now send any frame fields, in order
 .endif
 .for field where type = "frame"
+.    fname = defined(header) ?? "$(name)" ? "$(name:no)"
 .    if last ()
-	err = socket.SendPart($(self).$(name:no), false)
+	err = socket.SendPart($(self).$(fname:no), false)
 .    else
-	err = socket.SendPart($(self).$(name:no), true)
+	err = socket.SendPart($(self).$(fname:no), true)
 .    endif
 .endfor
 
@@ -301,16 +308,17 @@ func ($(self) *$(struct:no)) Address() []byte {
 func ($(self) *$(struct:no)) SetAddress(address []byte) {
 	$(self).address = address
 }
-.for field as f
-.    for class.header
-.        for field where name = "$(f.name)"
+.for field where defined(header)
 
-// Set$(f.name:no) sets $(f.name:no)
-func ($(self) *$(struct:no)) Set$(f.name:no)($(f.name) $(f.gotype)) {
-	$(self).$(f.name:no) = $(f.name)
+// Set$(name:no) sets the $(name)
+func ($(self) *$(struct:no)) Set$(name:no)($(name) $(gotype)) {
+	$(self).$(name) = $(name)
 }
-.        endfor
-.    endfor
+
+// $(name:no) returns the $(name)
+func ($(self) *$(struct:no)) $(name:no)() $(gotype) {
+	return $(self).$(name)
+}
 .endfor
 .echo "Generating ../../pkg/msg/$(name)_test.go ..."
 .output "../../pkg/msg/$(name)_test.go"
@@ -333,6 +341,8 @@ func Test$(struct:no)(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	address := []byte("Shout")
+	output.SetIdentitiy(address)
 	err = output.Bind("inproc://selftest")
 	if err != nil {
 		t.Fatal(err)
@@ -350,19 +360,36 @@ func Test$(struct:no)(t *testing.T) {
 	// Create a $(Name) message and send it through the wire
 	$(struct) := New$(struct:no)()
 .   for field where !defined (value)
-.       if type = "number"
+.       if defined(header)
+.           if type = "number"
+	$(struct).Set$(name:no)(123)
+.           elsif type = "octets"
+.           data = "'z', " * size
+	$(struct).Set$(name:no)([$(size)]byte{$(data)})
+.           elsif type = "string"
+	$(struct).Set$(name:no)("Life is short but Now lasts for ever")
+.           elsif type = "strings"
+	$(struct).Set$(name:no)([]string{"Name: Brutus", "Age: 43"})
+.           elsif type = "dictionary"
+	$(struct).Set$(name:no)(map[string]string{"Name": "Brutus", "Age": "43"})
+.           elsif type = "frame"
+	$(struct).Set$(name:no)([]byte("Captcha Diem"))
+.           endif
+.       else
+.           if type = "number"
 	$(struct).$(name:no) = 123
-.       elsif type = "octets"
-.       data = "'z', " * size
+.           elsif type = "octets"
+.           data = "'z', " * size
 	$(struct).$(name:no) = [$(size)]byte{$(data)}
-.       elsif type = "string"
+.           elsif type = "string"
 	$(struct).$(name:no) = "Life is short but Now lasts for ever"
-.       elsif type = "strings"
+.           elsif type = "strings"
 	$(struct).$(name:no) = []string{"Name: Brutus", "Age: 43"}
-.       elsif type = "dictionary"
+.           elsif type = "dictionary"
 	$(struct).$(name:no) = map[string]string{"Name": "Brutus", "Age": "43"}
-.       elsif type = "frame"
+.           elsif type = "frame"
 	$(struct).$(name:no) = []byte("Captcha Diem")
+.           endif
 .       endif
 .   endfor
 
@@ -378,42 +405,55 @@ func Test$(struct:no)(t *testing.T) {
 
 	msg := transit.(*$(struct:no))
 .   for field where !defined (value)
+.       fname = defined(header) ?? "$(name:no)()" ? "$(name:no)"
 .       if type = "number"
-	if msg.$(name:no) != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.$(name:no))
+	if msg.$(fname:no) != 123 {
+		t.Fatalf("expected %d, got %d", 123, msg.$(fname:no))
 	}
 .       elsif type = "octets"
 .       data = "'z', " * size
-	if len(msg.$(name:no)) != $(size) {
-		t.Fatalf("mismatch octets size for %s", "$(name:no)")
+	if len(msg.$(fname:no)) != $(size) {
+		t.Fatalf("mismatch octets size for %s", "$(fname:no)")
 	}
 	for idx, b := range [$(size)]byte{$(data)} {
-		if msg.$(name:no)[idx] != b {
-			t.Fatalf("mismatch octets value for %s", "$(name:no)")
+		if msg.$(fname:no)[idx] != b {
+			t.Fatalf("mismatch octets value for %s", "$(fname:no)")
 		}
 	}
 .       elsif type = "string"
-	if msg.$(name:no) != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.$(name:no))
+	if msg.$(fname:no) != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.$(fname:no))
 	}
 .       elsif type = "strings"
 	for idx, str := range []string{"Name: Brutus", "Age: 43"} {
-		if msg.$(name:no)[idx] != str {
-			t.Fatalf("expected %s, got %s", str, msg.$(name:no)[idx])
+		if msg.$(fname:no)[idx] != str {
+			t.Fatalf("expected %s, got %s", str, msg.$(fname:no)[idx])
 		}
 	}
 .       elsif type = "dictionary"
 	for key, val := range map[string]string{"Name": "Brutus", "Age": "43"} {
-		if msg.$(name:no)[key] != val {
-			t.Fatalf("expected %s, got %s", val, msg.$(name:no)[key])
+		if msg.$(fname:no)[key] != val {
+			t.Fatalf("expected %s, got %s", val, msg.$(fname:no)[key])
 		}
 	}
 .       elsif type = "frame"
-	if string(msg.$(name:no)) != "Captcha Diem" {
-		t.Fatalf("expected %s, got %s", "Captcha Diem", msg.$(name:no))
+	if string(msg.$(fname:no)) != "Captcha Diem" {
+		t.Fatalf("expected %s, got %s", "Captcha Diem", msg.$(fname:no))
 	}
 .       endif
 .   endfor
+
+	err = msg.Send(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transit, err = Recv(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(address) != string(msg.Address()) {
+		t.Fatalf("expected %v, got %v", address, msg.Address())
+	}
 }
 .endfor
 .echo "Generating ../../pkg/msg/$(name).go ..."
@@ -448,15 +488,12 @@ type Transit interface {
 	Marshal() ([]byte, error)
 	Unmarshal([][]byte) error
 	String() string
+	Send(*zmq.Socket) error
 	SetAddress([]byte)
 	Address() []byte
-	Send(*zmq.Socket) error
-.for field as f
-.    for class.header
-.        for field where name = "$(f.name)"
-	Set$(f.name:no)($(f.gotype))
-.        endfor
-.    endfor
+.for field where defined(header)
+	Set$(name:no)($(gotype))
+	$(name:no)() $(gotype)
 .endfor
 }
 
@@ -528,18 +565,19 @@ func Clone(t Transit) Transit {
 	case *$(name:no):
 		cloned := New$(name:no)()
 .    for field
+.       fname = defined(header) ?? "$(name)" ? "$(name:no)"
 .       if type = "dictionary"
-		for key, val := range msg.$(name:no) {
-			cloned.$(name:no)[key] = val
+		for key, val := range msg.$(fname:no) {
+			cloned.$(fname:no)[key] = val
 		}
 .       elsif type = "strings"
-		for idx, str := range msg.$(name:no) {
-			cloned.$(name:no)[idx] = str
+		for idx, str := range msg.$(fname:no) {
+			cloned.$(fname:no)[idx] = str
 		}
 .       elsif type = "octets" | type = "frame"
-		cloned.$(name:no) = append(cloned.$(name:no), msg.$(name:no)...)
+		cloned.$(fname:no) = append(cloned.$(fname:no), msg.$(fname:no)...)
 .       else
-		cloned.$(name:no) = msg.$(name:no)
+		cloned.$(fname:no) = msg.$(fname:no)
 .       endif
 .    endfor
 		return cloned

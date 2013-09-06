@@ -15,7 +15,7 @@ const (
 // Leave a group
 type Leave struct {
 	address  []byte
-	Sequence uint16
+	sequence uint16
 	Group    string
 	Status   byte
 }
@@ -54,7 +54,7 @@ func (l *Leave) Marshal() ([]byte, error) {
 	binary.Write(buffer, binary.BigEndian, LeaveId)
 
 	// Sequence
-	binary.Write(buffer, binary.BigEndian, l.Sequence)
+	binary.Write(buffer, binary.BigEndian, l.Sequence())
 
 	// Group
 	putString(buffer, l.Group)
@@ -86,7 +86,7 @@ func (l *Leave) Unmarshal(frames [][]byte) error {
 	}
 
 	// Sequence
-	binary.Read(buffer, binary.BigEndian, &l.Sequence)
+	binary.Read(buffer, binary.BigEndian, &l.sequence)
 
 	// Group
 	l.Group = getString(buffer)
@@ -133,7 +133,12 @@ func (l *Leave) SetAddress(address []byte) {
 	l.address = address
 }
 
-// SetSequence sets Sequence
+// SetSequence sets the sequence
 func (l *Leave) SetSequence(sequence uint16) {
-	l.Sequence = sequence
+	l.sequence = sequence
+}
+
+// Sequence returns the sequence
+func (l *Leave) Sequence() uint16 {
+	return l.sequence
 }

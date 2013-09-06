@@ -20,10 +20,11 @@ type Transit interface {
 	Marshal() ([]byte, error)
 	Unmarshal([][]byte) error
 	String() string
+	Send(*zmq.Socket) error
 	SetAddress([]byte)
 	Address() []byte
-	Send(*zmq.Socket) error
 	SetSequence(uint16)
+	Sequence() uint16
 }
 
 // Recv receives marshaled data from 0mq socket
@@ -99,7 +100,7 @@ func Clone(t Transit) Transit {
 	switch msg := t.(type) {
 	case *Hello:
 		cloned := NewHello()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		cloned.Ipaddress = msg.Ipaddress
 		cloned.Mailbox = msg.Mailbox
 		for idx, str := range msg.Groups {
@@ -113,39 +114,39 @@ func Clone(t Transit) Transit {
 
 	case *Whisper:
 		cloned := NewWhisper()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		cloned.Content = append(cloned.Content, msg.Content...)
 		return cloned
 
 	case *Shout:
 		cloned := NewShout()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Content = append(cloned.Content, msg.Content...)
 		return cloned
 
 	case *Join:
 		cloned := NewJoin()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Status = msg.Status
 		return cloned
 
 	case *Leave:
 		cloned := NewLeave()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Status = msg.Status
 		return cloned
 
 	case *Ping:
 		cloned := NewPing()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		return cloned
 
 	case *PingOk:
 		cloned := NewPingOk()
-		cloned.Sequence = msg.Sequence
+		cloned.sequence = msg.sequence
 		return cloned
 
 	}
