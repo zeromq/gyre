@@ -18,6 +18,7 @@ package beacon
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"time"
 )
@@ -50,26 +51,46 @@ type Beacon struct {
 // New creates a new beacon
 func New(port int) (*Beacon, error) {
 
-	bcast := &net.UDPAddr{Port: port, IP: net.IPv4bcast}
+	var (
+		ip    net.IP
+		bcast *net.UDPAddr
+		found bool
+	)
+
+	ifs, err := net.Interfaces()
+	for _, i := range ifs {
+		if i.Flags&net.FlagLoopback == 0 && i.Flags&net.FlagBroadcast != 0 {
+			addrs, err := i.Addrs()
+			if err != nil {
+				continue
+			}
+
+			mcasts, err := i.MulticastAddrs()
+			if err != nil {
+				continue
+			}
+
+			ip, _, _ = net.ParseCIDR(addrs[0].String())
+			bcast = &net.UDPAddr{Port: port, IP: net.ParseIP(mcasts[0].String())}
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, errors.New("no interfaces to bind to")
+	}
+
 	conn, err := net.ListenUDP("udp", bcast)
 	if err != nil {
 		return nil, err
 	}
 
-	var hostname string
-	addr := conn.LocalAddr().String()
-	name, err := net.LookupAddr(addr)
-	if err == nil {
-		hostname = name[0]
-	} else {
-		hostname = addr
-	}
-
 	b := &Beacon{
 		Signals:  make(chan *Signal),
 		Interval: defaultInterval,
-		Hostname: hostname,
-		Addr:     addr,
+		Hostname: ip.String(),
+		Addr:     ip.String(),
 		Port:     port,
 		conn:     conn,
 	}
