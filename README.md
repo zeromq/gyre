@@ -1,3 +1,3 @@
 # go-zre
 
-This is an attempt to implement ZRE protocol in Go.
+ZRE (ZeroMQ Realtime Exchange Protocol) implementation in Go (http://rfc.zeromq.org/spec:20)
