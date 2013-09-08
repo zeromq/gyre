@@ -1,9 +1,9 @@
 package zre
 
 import (
+	zmq "github.com/armen/go-zmq"
 	"github.com/armen/go-zre/pkg/beacon"
 	"github.com/armen/go-zre/pkg/msg"
-	zmq "github.com/vaughan0/go-zmq"
 
 	"bytes"
 	"crypto/rand"

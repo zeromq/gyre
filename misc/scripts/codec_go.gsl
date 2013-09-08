@@ -68,7 +68,7 @@
 package $(class.name)
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/armen/go-zmq"
 
 	"bytes"
 	"encoding/binary"
@@ -325,7 +325,7 @@ func ($(self) *$(struct:no)) $(name:no)() $(gotype) {
 package $(class.name)
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/armen/go-zmq"
 
 	"testing"
 )
@@ -461,7 +461,7 @@ func Test$(struct:no)(t *testing.T) {
 package $(class.name)
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/armen/go-zmq"
 
 	"bytes"
 	"encoding/binary"

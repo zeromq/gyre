@@ -1,7 +1,7 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/armen/go-zmq"
 
 	"testing"
 )
