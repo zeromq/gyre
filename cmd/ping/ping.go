@@ -12,7 +12,7 @@ func main() {
 		log.Println(err)
 	}
 	node.Join("GLOBAL")
-	log.Println(node.Identity)
+	log.Printf("I: [%s] started\n", node.Identity)
 
 	for {
 		select {
