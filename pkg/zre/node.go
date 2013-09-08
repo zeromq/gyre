@@ -265,16 +265,17 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	// Now process each command
 	switch m := transit.(type) {
 	case *msg.Hello:
-		// Join peer to listed groups
-		for _, group := range m.Groups {
-			n.joinPeerGroup(peer, group)
-		}
 		// Hello command holds latest status of peer
 		peer.Status = m.Status
 
 		// Store peer headers for future reference
 		for key, val := range m.Headers {
 			peer.Headers[key] = val
+		}
+
+		// Join peer to listed groups
+		for _, group := range m.Groups {
+			n.joinPeerGroup(peer, group)
 		}
 
 	case *msg.Whisper:
