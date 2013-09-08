@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-const (
-	reapInterval = 1 * time.Second //  Once per second
+const reapInterval = 1 * time.Second //  Once per second
 
-	peerEvasive = 5  // Five seconds' silence is evasive
-	peerExpired = 10 // Ten seconds' silence is expired
+var (
+	peerEvasive time.Duration = 5  // Five seconds' silence is evasive
+	peerExpired time.Duration = 10 // Ten seconds' silence is expired
 )
 
 type Peer struct {
@@ -54,7 +54,7 @@ func (p *Peer) Connect(replyTo, endpoint string) (err error) {
 	p.mailbox.SetIdentitiy([]byte(replyTo))
 
 	// Set a high-water mark that allows for reasonable activity
-	p.mailbox.SetSendHWM(peerExpired * 100000)
+	p.mailbox.SetSendHWM(uint64(peerExpired * 100000))
 
 	// Send messages immediately or return EAGAIN
 	p.mailbox.SetSendTimeout(0)
@@ -105,4 +105,14 @@ func (p *Peer) CheckMessage(t msg.Transit) bool {
 func (p *Peer) Refresh() {
 	p.EvasiveAt = time.Now().Add(peerEvasive * time.Second)
 	p.ExpiredAt = time.Now().Add(peerExpired * time.Second)
+}
+
+// SetExpired sets expired.
+func SetExpired(expired time.Duration) {
+	peerExpired = expired
+}
+
+// SetEvasive sets evasive.
+func SetEvasive(evasive time.Duration) {
+	peerEvasive = evasive
 }
