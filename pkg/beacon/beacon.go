@@ -45,7 +45,7 @@ type Beacon struct {
 	terminated bool
 	transmit   []byte
 	filter     []byte
-	broadcast  string // TODO: need to figure out the broadcast address
+	mcast      *net.UDPAddr
 }
 
 // New creates a new beacon
@@ -53,25 +53,24 @@ func New(port int) (*Beacon, error) {
 
 	var (
 		ip    net.IP
-		bcast *net.UDPAddr
 		found bool
+		mcast *net.UDPAddr
 	)
 
 	ifs, err := net.Interfaces()
-	for _, i := range ifs {
-		if i.Flags&net.FlagLoopback == 0 && i.Flags&net.FlagBroadcast != 0 {
-			addrs, err := i.Addrs()
+	for _, iface := range ifs {
+		if iface.Flags&net.FlagLoopback == 0 && iface.Flags&net.FlagBroadcast != 0 {
+			addrs, err := iface.Addrs()
 			if err != nil {
 				continue
 			}
 
-			mcasts, err := i.MulticastAddrs()
+			mcasts, err := iface.MulticastAddrs()
 			if err != nil {
 				continue
 			}
-
 			ip, _, _ = net.ParseCIDR(addrs[0].String())
-			bcast = &net.UDPAddr{Port: port, IP: net.ParseIP(mcasts[0].String())}
+			mcast = &net.UDPAddr{Port: port, IP: net.ParseIP(mcasts[0].String())}
 			found = true
 			break
 		}
@@ -81,7 +80,7 @@ func New(port int) (*Beacon, error) {
 		return nil, errors.New("no interfaces to bind to")
 	}
 
-	conn, err := net.ListenUDP("udp", bcast)
+	conn, err := net.ListenUDP("udp", mcast)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +92,7 @@ func New(port int) (*Beacon, error) {
 		Addr:     ip.String(),
 		Port:     port,
 		conn:     conn,
+		mcast:    mcast,
 	}
 
 	go b.listen()
@@ -182,8 +182,7 @@ func (b *Beacon) signal() {
 			}
 			if b.transmit != nil {
 				// Signal other beacons
-				bcast := &net.UDPAddr{Port: b.Port, IP: net.IPv4bcast}
-				b.conn.WriteTo(b.transmit, bcast)
+				b.conn.WriteToUDP(b.transmit, b.mcast)
 			}
 			b.ticker = time.After(b.Interval)
 		}
