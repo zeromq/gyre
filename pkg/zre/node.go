@@ -257,7 +257,7 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 
 	// Ignore command if peer isn't ready
 	if peer == nil || !peer.Ready {
-		log.Printf("W: [%s] peer %s wasn't ready", n.Identity, identity)
+		log.Printf("W: [%s] peer %s wasn't ready, ignoring a %s message", n.Identity, identity, transit)
 		return
 	}
 
