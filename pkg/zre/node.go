@@ -202,6 +202,10 @@ func (n *Node) Set(key, value string) *Node {
 	return n
 }
 
+func (n *Node) Get(key string) (header string) {
+	return n.Headers[key]
+}
+
 // Chan returns Events channel
 func (n *Node) Chan() chan *Event {
 	return n.Events
