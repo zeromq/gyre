@@ -306,13 +306,13 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	case *msg.Join:
 		n.joinPeerGroup(peer, m.Group)
 		if m.Status != peer.Status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", m.Status, peer.Status)
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.Status)
 		}
 
 	case *msg.Leave:
 		n.leavePeerGroup(peer, m.Group)
 		if m.Status != peer.Status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", m.Status, peer.Status)
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.Status)
 		}
 	}
 
