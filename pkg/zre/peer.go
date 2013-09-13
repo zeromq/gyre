@@ -75,9 +75,11 @@ func (p *Peer) Disconnect() {
 		p.Endpoint = ""
 		if p.mailbox != nil {
 			p.mailbox.Close()
+			p.context = nil
 		}
 		if p.context != nil {
 			p.context.Close()
+			p.context = nil
 		}
 	}
 }
