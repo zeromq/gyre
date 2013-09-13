@@ -438,9 +438,7 @@ func (n *Node) pingPeer(peer *Peer) {
 			group.Leave(peer)
 		}
 		delete(n.Peers, peer.Identity)
-	}
-
-	if time.Now().Unix() >= peer.EvasiveAt.Unix() {
+	} else if time.Now().Unix() >= peer.EvasiveAt.Unix() {
 		//  If peer is being evasive, force a TCP ping.
 		//  TODO: do this only once for a peer in this state;
 		//  it would be nicer to use a proper state machine
