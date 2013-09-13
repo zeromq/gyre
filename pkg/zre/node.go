@@ -65,20 +65,19 @@ type Node struct {
 
 // NewNode creates a new node
 func NewNode() (node *Node, err error) {
-	node = &Node{}
-	node.Events = make(chan *Event)
+	node = &Node{
+		Peers:      make(map[string]*Peer),
+		PeerGroups: make(map[string]*Group),
+		OwnGroups:  make(map[string]*Group),
+		Headers:    make(map[string]string),
+		Events:     make(chan *Event),
+	}
 
 	context, err := zmq.NewContext()
 	if err != nil {
 		return nil, err
 	}
-
 	node.context = context
-
-	// Generate random uuid
-	node.Uuid = make([]byte, 16)
-	io.ReadFull(rand.Reader, node.Uuid)
-	node.Identity = fmt.Sprintf("%X", node.Uuid)
 
 	node.inbox, err = context.Socket(zmq.Router)
 	if err != nil {
@@ -91,16 +90,10 @@ func NewNode() (node *Node, err error) {
 	}
 	node.Port = node.inbox.Port()
 
-	// Create a beacon
-	node.Beacon, err = beacon.New(zreDiscoveryPort)
-	if err != nil {
-		return nil, err
-	}
-
-	buf := make([]byte, 16)
-	io.ReadFull(rand.Reader, buf)
-	node.Uuid = buf
-	node.Identity = fmt.Sprintf("%X", buf)
+	// Generate random uuid
+	node.Uuid = make([]byte, 16)
+	io.ReadFull(rand.Reader, node.Uuid)
+	node.Identity = fmt.Sprintf("%X", node.Uuid)
 
 	s := &signal{}
 	s.Protocol[0] = 'Z'
@@ -116,15 +109,15 @@ func NewNode() (node *Node, err error) {
 	binary.Write(buffer, binary.BigEndian, s.Uuid)
 	binary.Write(buffer, binary.BigEndian, s.Port)
 
-	node.Beacon.NoEcho()
-	node.Beacon.Publish(buffer.Bytes())
-	node.Beacon.Subscribe([]byte("ZRE"))
+	// Create a beacon
+	node.Beacon, err = beacon.New(zreDiscoveryPort)
+	if err != nil {
+		return nil, err
+	}
 	node.Host = node.Beacon.Hostname
-
-	node.Peers = make(map[string]*Peer)
-	node.PeerGroups = make(map[string]*Group)
-	node.OwnGroups = make(map[string]*Group)
-	node.Headers = make(map[string]string)
+	node.Beacon.NoEcho()
+	node.Beacon.Subscribe([]byte("ZRE"))
+	node.Beacon.Publish(buffer.Bytes())
 
 	go node.handle()
 
