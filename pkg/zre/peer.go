@@ -60,12 +60,15 @@ func (p *Peer) Connect(replyTo, endpoint string) (err error) {
 	p.mailbox.SetSendTimeout(0)
 
 	// Connect through to peer node
-	p.mailbox.Connect(fmt.Sprintf("tcp://%s", endpoint))
+	err = p.mailbox.Connect(fmt.Sprintf("tcp://%s", endpoint))
+	if err != nil {
+		return err
+	}
 	p.Endpoint = endpoint
 	p.Connected = true
 	p.Ready = false
 
-	return err
+	return nil
 }
 
 // Disconnect disconnects peer mailbox. No more messages will be sent to peer until connected again
