@@ -29,6 +29,7 @@ const (
 	EventShout   = "SHOUT"
 	EventJoin    = "JOIN"
 	EventLeave   = "LEAVE"
+	EventSet     = "SET"
 )
 
 type signal struct {
@@ -42,6 +43,7 @@ type Event struct {
 	Type    string
 	Peer    string
 	Group   string
+	Key     string // Only used for EventSet
 	Content []byte
 }
 
@@ -130,6 +132,53 @@ func NewNode() (node *Node, err error) {
 }
 
 func (n *Node) Whisper(identity string, content []byte) *Node {
+	n.Events <- &Event{
+		Type:    EventWhisper,
+		Peer:    identity,
+		Content: content,
+	}
+	return n
+}
+
+func (n *Node) Shout(group string, content []byte) *Node {
+	n.Events <- &Event{
+		Type:    EventShout,
+		Group:   group,
+		Content: content,
+	}
+	return n
+}
+
+func (n *Node) Join(group string) *Node {
+	n.Events <- &Event{
+		Type:  EventJoin,
+		Group: group,
+	}
+	return n
+}
+
+func (n *Node) Leave(group string) *Node {
+	n.Events <- &Event{
+		Type:  EventLeave,
+		Group: group,
+	}
+	return n
+}
+
+func (n *Node) Set(key, value string) *Node {
+	n.Events <- &Event{
+		Type:    EventSet,
+		Key:     key,
+		Content: []byte(value),
+	}
+	return n
+}
+
+func (n *Node) Get(key string) (header string) {
+	return n.Headers[key]
+}
+
+func (n *Node) whisper(identity string, content []byte) {
 
 	// Get peer to send message to
 	peer, ok := n.Peers[identity]
@@ -141,11 +190,9 @@ func (n *Node) Whisper(identity string, content []byte) *Node {
 		m.Content = content
 		peer.Send(m)
 	}
-
-	return n
 }
 
-func (n *Node) Shout(group string, content []byte) *Node {
+func (n *Node) shout(group string, content []byte) {
 	// Get group to send message to
 	if g, ok := n.PeerGroups[group]; ok {
 		m := msg.NewShout()
@@ -153,11 +200,9 @@ func (n *Node) Shout(group string, content []byte) *Node {
 		m.Content = content
 		g.Send(m)
 	}
-
-	return n
 }
 
-func (n *Node) Join(group string) *Node {
+func (n *Node) join(group string) {
 	if _, ok := n.OwnGroups[group]; !ok {
 
 		// Only send if we're not already in group
@@ -174,11 +219,9 @@ func (n *Node) Join(group string) *Node {
 			peer.Send(cloned)
 		}
 	}
-
-	return n
 }
 
-func (n *Node) Leave(group string) *Node {
+func (n *Node) leave(group string) {
 	if _, ok := n.PeerGroups[group]; ok {
 		// Only send if we are actually in group
 		m := msg.NewLeave()
@@ -194,16 +237,10 @@ func (n *Node) Leave(group string) *Node {
 		}
 		delete(n.OwnGroups, group)
 	}
-	return n
 }
 
-func (n *Node) Set(key, value string) *Node {
-	n.Headers[key] = value
-	return n
-}
-
-func (n *Node) Get(key string) (header string) {
-	return n.Headers[key]
+func (n *Node) set(key string, value []byte) {
+	n.Headers[key] = string(value)
 }
 
 // Chan returns Events channel
@@ -218,6 +255,21 @@ func (n *Node) handle() {
 
 	for {
 		select {
+		case e := <-n.Events:
+			// Received a command/event from the caller/API
+			switch e.Type {
+			case EventWhisper:
+				n.whisper(e.Peer, e.Content)
+			case EventShout:
+				n.shout(e.Group, e.Content)
+			case EventJoin:
+				n.join(e.Group)
+			case EventLeave:
+				n.leave(e.Group)
+			case EventSet:
+				n.set(e.Key, e.Content)
+			}
+
 		case frames := <-channls.In():
 			transit, err := msg.RecvRaw(frames, n.inbox.GetType())
 			if err != nil {
