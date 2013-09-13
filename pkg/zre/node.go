@@ -32,7 +32,7 @@ const (
 	EventSet     = "SET"
 )
 
-type signal struct {
+type sig struct {
 	Protocol [3]byte
 	Version  byte
 	Uuid     []byte
@@ -95,7 +95,7 @@ func NewNode() (node *Node, err error) {
 	io.ReadFull(rand.Reader, node.Uuid)
 	node.Identity = fmt.Sprintf("%X", node.Uuid)
 
-	s := &signal{}
+	s := &sig{}
 	s.Protocol[0] = 'Z'
 	s.Protocol[1] = 'R'
 	s.Protocol[2] = 'E'
@@ -270,8 +270,8 @@ func (n *Node) handle() {
 			}
 			n.recvFromPeer(transit)
 
-		case sig := <-n.Beacon.Chan():
-			n.recvFromBeacon(sig)
+		case s := <-n.Beacon.Chan():
+			n.recvFromBeacon(s)
 
 		case err := <-channls.Errors():
 			log.Println(err)
@@ -366,28 +366,28 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 }
 
 // recvFromBeacon handles a new signal received from beacon
-func (n *Node) recvFromBeacon(s *beacon.Signal) {
+func (n *Node) recvFromBeacon(b *beacon.Signal) {
 	// Get IP address and beacon of peer
 
-	parts := strings.SplitN(s.Addr, ":", 2)
+	parts := strings.SplitN(b.Addr, ":", 2)
 	ipaddress := parts[0]
 
-	sig := &signal{}
-	buffer := bytes.NewBuffer(s.Transmit)
-	binary.Read(buffer, binary.BigEndian, &sig.Protocol)
-	binary.Read(buffer, binary.BigEndian, &sig.Version)
+	s := &sig{}
+	buffer := bytes.NewBuffer(b.Transmit)
+	binary.Read(buffer, binary.BigEndian, &s.Protocol)
+	binary.Read(buffer, binary.BigEndian, &s.Version)
 
 	uuid := make([]byte, 16)
 	binary.Read(buffer, binary.BigEndian, uuid)
-	sig.Uuid = append(sig.Uuid, uuid...)
+	s.Uuid = append(s.Uuid, uuid...)
 
-	binary.Read(buffer, binary.BigEndian, &sig.Port)
+	binary.Read(buffer, binary.BigEndian, &s.Port)
 
 	// Ignore anything that isn't a valid beacon
-	if sig.Version == beaconVersion {
+	if s.Version == beaconVersion {
 		// Check that the peer, identified by its UUID, exists
-		identity := fmt.Sprintf("%X", sig.Uuid)
-		peer := n.requirePeer(identity, ipaddress, sig.Port)
+		identity := fmt.Sprintf("%X", s.Uuid)
+		peer := n.requirePeer(identity, ipaddress, s.Port)
 		peer.Refresh()
 	}
 }
@@ -472,7 +472,6 @@ func (n *Node) leavePeerGroup(peer *Peer, name string) {
 // - if peer has gone quiet, send TCP ping
 // - if peer has disappeared, expire it
 func (n *Node) pingPeer(peer *Peer) {
-
 	if time.Now().Unix() >= peer.ExpiredAt.Unix() {
 		// If peer has really vanished, expire it
 		n.Events <- &Event{
