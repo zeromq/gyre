@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,6 +49,9 @@ type Event struct {
 }
 
 type Node struct {
+	quit chan struct{}  // quit is used to signal handler about quiting
+	wg   sync.WaitGroup // wait group is used to wait until handler() is done
+
 	Events     chan *Event
 	Beacon     *beacon.Beacon
 	Uuid       []byte            // Our UUID
@@ -66,12 +70,14 @@ type Node struct {
 // NewNode creates a new node
 func NewNode() (node *Node, err error) {
 	node = &Node{
+		quit:       make(chan struct{}),
+		Events:     make(chan *Event),
 		Peers:      make(map[string]*Peer),
 		PeerGroups: make(map[string]*Group),
 		OwnGroups:  make(map[string]*Group),
 		Headers:    make(map[string]string),
-		Events:     make(chan *Event),
 	}
+	node.wg.Add(1) // We're going to wait until handler() is done
 
 	context, err := zmq.NewContext()
 	if err != nil {
@@ -242,12 +248,19 @@ func (n *Node) Chan() chan *Event {
 }
 
 func (n *Node) handle() {
-	channls := n.inbox.Channels()
+	defer func() {
+		n.wg.Done()
+	}()
 
+	chans := n.inbox.Channels()
 	ping := time.After(reapInterval)
+	stype := n.inbox.GetType()
 
 	for {
 		select {
+		case <-n.quit:
+			return
+
 		case e := <-n.Events:
 			// Received a command/event from the caller/API
 			switch e.Type {
@@ -263,8 +276,8 @@ func (n *Node) handle() {
 				n.set(e.Key, e.Content)
 			}
 
-		case frames := <-channls.In():
-			transit, err := msg.RecvRaw(frames, n.inbox.GetType())
+		case frames := <-chans.In():
+			transit, err := msg.RecvRaw(frames, stype)
 			if err != nil {
 				continue
 			}
@@ -273,7 +286,7 @@ func (n *Node) handle() {
 		case s := <-n.Beacon.Chan():
 			n.recvFromBeacon(s)
 
-		case err := <-channls.Errors():
+		case err := <-chans.Errors():
 			log.Println(err)
 
 		case <-ping:
@@ -490,4 +503,23 @@ func (n *Node) pingPeer(peer *Peer) {
 		m := msg.NewPing()
 		peer.Send(m)
 	}
+}
+
+// Disconnect leaves all the groups and the closes all the connections to the peers
+func (n *Node) Disconnect() {
+	close(n.quit)
+	n.wg.Wait()
+
+	// Close sockets on a signal
+	for group := range n.OwnGroups {
+		// Note that n.leave is used not n.Leave because we're already in select
+		// and Leave sends communicate to Events channel which obviously blocks
+		n.leave(group)
+	}
+	// Disconnect from all peers
+	for _, p := range n.Peers {
+		p.Disconnect()
+	}
+	// Now it's safe to close the connection
+	n.inbox.Close()
 }
