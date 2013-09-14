@@ -56,7 +56,6 @@ type Node struct {
 	Beacon     *beacon.Beacon
 	Uuid       []byte            // Our UUID
 	Identity   string            // Our UUID as hex string
-	context    *zmq.Context      // zmq context
 	inbox      *zmq.Socket       // Our inbox socket (ROUTER)
 	Host       string            // Our host IP address
 	Port       uint16            // Our inbox port number
@@ -79,13 +78,7 @@ func NewNode() (node *Node, err error) {
 	}
 	node.wg.Add(1) // We're going to wait until handler() is done
 
-	context, err := zmq.NewContext()
-	if err != nil {
-		return nil, err
-	}
-	node.context = context
-
-	node.inbox, err = context.Socket(zmq.Router)
+	node.inbox, err = zmq.NewSocket(zmq.Router)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +410,7 @@ func (n *Node) requirePeer(identity, address string, port uint16) (peer *Peer) {
 			}
 		}
 
-		peer = NewPeer(identity, n.context)
+		peer = NewPeer(identity)
 		peer.Connect(n.Identity, endpoint)
 
 		// Handshake discovery by sending HELLO as first message

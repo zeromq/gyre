@@ -15,7 +15,6 @@ var (
 )
 
 type Peer struct {
-	context      *zmq.Context
 	mailbox      *zmq.Socket // Socket through to peer
 	Identity     string
 	Endpoint     string            // Endpoint connected to
@@ -30,9 +29,8 @@ type Peer struct {
 }
 
 // NewPeer creates a new peer
-func NewPeer(identity string, context *zmq.Context) (peer *Peer) {
+func NewPeer(identity string) (peer *Peer) {
 	peer = &Peer{
-		context:  context,
 		Identity: identity,
 		Headers:  make(map[string]string),
 	}
@@ -43,7 +41,7 @@ func NewPeer(identity string, context *zmq.Context) (peer *Peer) {
 // Connect configures mailbox and connects to peer's router endpoint
 func (p *Peer) Connect(replyTo, endpoint string) (err error) {
 	// Create new outgoing socket (drop any messages in transit)
-	p.mailbox, err = p.context.Socket(zmq.Dealer)
+	p.mailbox, err = zmq.NewSocket(zmq.Dealer)
 	if err != nil {
 		return err
 	}
@@ -78,11 +76,7 @@ func (p *Peer) Disconnect() {
 		p.Endpoint = ""
 		if p.mailbox != nil {
 			p.mailbox.Close()
-			p.context = nil
-		}
-		if p.context != nil {
-			p.context.Close()
-			p.context = nil
+			p.mailbox = nil
 		}
 	}
 }
