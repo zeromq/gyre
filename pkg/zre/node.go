@@ -512,8 +512,9 @@ func (n *Node) Disconnect() {
 		n.leave(group)
 	}
 	// Disconnect from all peers
-	for _, p := range n.Peers {
+	for id, p := range n.Peers {
 		p.Disconnect()
+		delete(n.Peers, id)
 	}
 	// Now it's safe to close the connection
 	n.inbox.Close()
