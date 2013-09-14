@@ -246,6 +246,8 @@ func (n *Node) handle() {
 	}()
 
 	chans := n.inbox.Channels()
+	defer chans.Close()
+
 	ping := time.After(reapInterval)
 	stype := n.inbox.GetType()
 
