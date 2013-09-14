@@ -73,11 +73,12 @@ func (p *Peer) Connect(replyTo, endpoint string) (err error) {
 func (p *Peer) Disconnect() {
 	if p.Connected {
 		p.Connected = false
-		p.Endpoint = ""
 		if p.mailbox != nil {
+			p.mailbox.Disconnect(p.Endpoint)
 			p.mailbox.Close()
 			p.mailbox = nil
 		}
+		p.Endpoint = ""
 	}
 }
 
