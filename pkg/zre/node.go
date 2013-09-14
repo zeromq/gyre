@@ -516,6 +516,7 @@ func (n *Node) Disconnect() {
 		p.Disconnect()
 		delete(n.Peers, id)
 	}
-	// Now it's safe to close the connection
+	// Now it's safe to close the socket
+	n.inbox.Unbind(fmt.Sprintf("tcp://*:%d", n.Port))
 	n.inbox.Close()
 }
