@@ -216,7 +216,7 @@ func (n *Node) join(group string) {
 }
 
 func (n *Node) leave(group string) {
-	if _, ok := n.PeerGroups[group]; ok {
+	if _, ok := n.OwnGroups[group]; ok {
 		// Only send if we are actually in group
 		m := msg.NewLeave()
 		m.Group = group
