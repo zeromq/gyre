@@ -491,6 +491,10 @@ func (n *Node) pingPeer(peer *Peer) {
 		for _, group := range n.PeerGroups {
 			group.Leave(peer)
 		}
+		// It's really important to disconnect from the peer before
+		// deleting it, unless we'd end up difficulties to reconnect
+		// to the same endpoint
+		peer.Disconnect()
 		delete(n.Peers, peer.Identity)
 	} else if time.Now().Unix() >= peer.EvasiveAt.Unix() {
 		//  If peer is being evasive, force a TCP ping.
@@ -514,9 +518,12 @@ func (n *Node) Disconnect() {
 		n.leave(group)
 	}
 	// Disconnect from all peers
-	for id, p := range n.Peers {
-		p.Disconnect()
-		delete(n.Peers, id)
+	for peerId, peer := range n.Peers {
+		// It's really important to disconnect from the peer before
+		// deleting it, unless we'd end up difficulties to reconnect
+		// to the same endpoint
+		peer.Disconnect()
+		delete(n.Peers, peerId)
 	}
 	// Now it's safe to close the socket
 	n.inbox.Unbind(fmt.Sprintf("tcp://*:%d", n.Port))

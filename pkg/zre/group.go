@@ -25,8 +25,6 @@ func (g *Group) Join(peer *Peer) {
 
 // Leave removes peer from group
 func (g *Group) Leave(peer *Peer) {
-	// It's really important to disconnect from the peer on leave
-	peer.Disconnect()
 	delete(g.Peers, peer.Identity)
 	peer.Status++
 }
