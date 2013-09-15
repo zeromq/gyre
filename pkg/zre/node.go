@@ -53,6 +53,7 @@ type Node struct {
 	wg   sync.WaitGroup // wait group is used to wait until handler() is done
 
 	Events     chan *Event
+	Commands   chan *Event
 	Beacon     *beacon.Beacon
 	Uuid       []byte            // Our UUID
 	Identity   string            // Our UUID as hex string
@@ -71,6 +72,7 @@ func NewNode() (node *Node, err error) {
 	node = &Node{
 		quit:       make(chan struct{}),
 		Events:     make(chan *Event),
+		Commands:   make(chan *Event),
 		Peers:      make(map[string]*Peer),
 		PeerGroups: make(map[string]*Group),
 		OwnGroups:  make(map[string]*Group),
@@ -124,7 +126,7 @@ func NewNode() (node *Node, err error) {
 }
 
 func (n *Node) Whisper(identity string, content []byte) *Node {
-	n.Events <- &Event{
+	n.Commands <- &Event{
 		Type:    EventWhisper,
 		Peer:    identity,
 		Content: content,
@@ -133,7 +135,7 @@ func (n *Node) Whisper(identity string, content []byte) *Node {
 }
 
 func (n *Node) Shout(group string, content []byte) *Node {
-	n.Events <- &Event{
+	n.Commands <- &Event{
 		Type:    EventShout,
 		Group:   group,
 		Content: content,
@@ -142,7 +144,7 @@ func (n *Node) Shout(group string, content []byte) *Node {
 }
 
 func (n *Node) Join(group string) *Node {
-	n.Events <- &Event{
+	n.Commands <- &Event{
 		Type:  EventJoin,
 		Group: group,
 	}
@@ -150,7 +152,7 @@ func (n *Node) Join(group string) *Node {
 }
 
 func (n *Node) Leave(group string) *Node {
-	n.Events <- &Event{
+	n.Commands <- &Event{
 		Type:  EventLeave,
 		Group: group,
 	}
@@ -158,7 +160,7 @@ func (n *Node) Leave(group string) *Node {
 }
 
 func (n *Node) Set(key, value string) *Node {
-	n.Events <- &Event{
+	n.Commands <- &Event{
 		Type:    EventSet,
 		Key:     key,
 		Content: []byte(value),
@@ -256,8 +258,8 @@ func (n *Node) handle() {
 		case <-n.quit:
 			return
 
-		case e := <-n.Events:
-			// Received a command/event from the caller/API
+		case e := <-n.Commands:
+			// Received a command from the caller/API
 			switch e.Type {
 			case EventWhisper:
 				n.whisper(e.Peer, e.Content)
