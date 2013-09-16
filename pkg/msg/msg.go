@@ -16,6 +16,16 @@ const (
 	Version          = 1
 )
 
+const (
+	HelloId   uint8 = 1
+	WhisperId uint8 = 2
+	ShoutId   uint8 = 3
+	JoinId    uint8 = 4
+	LeaveId   uint8 = 5
+	PingId    uint8 = 6
+	PingOkId  uint8 = 7
+)
+
 type Transit interface {
 	Marshal() ([]byte, error)
 	Unmarshal(...[]byte) error
@@ -149,7 +159,6 @@ func Clone(t Transit) Transit {
 		cloned := NewPingOk()
 		cloned.sequence = msg.sequence
 		return cloned
-
 	}
 
 	return nil
@@ -191,5 +200,5 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 		return strs[0], strs[1]
 	}
 
-	return "", ""
+	return
 }

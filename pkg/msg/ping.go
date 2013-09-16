@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	PingId uint8 = 6
-)
-
 // Ping a peer that has gone silent
 type Ping struct {
 	address  []byte

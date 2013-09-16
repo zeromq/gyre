@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	LeaveId uint8 = 5
-)
-
 // Leave a group
 type Leave struct {
 	address  []byte

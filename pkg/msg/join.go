@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	JoinId uint8 = 4
-)
-
 // Join a group
 type Join struct {
 	address  []byte

@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	HelloId uint8 = 1
-)
-
 // Greet a peer so it can connect back to us
 type Hello struct {
 	address   []byte

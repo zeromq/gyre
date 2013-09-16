@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	PingOkId uint8 = 7
-)
-
 // Reply to a peer's ping
 type PingOk struct {
 	address  []byte

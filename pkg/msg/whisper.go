@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	WhisperId uint8 = 2
-)
-
 // Send a message to a peer
 type Whisper struct {
 	address  []byte

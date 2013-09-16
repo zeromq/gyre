@@ -84,10 +84,6 @@ import (
 
 .struct = "$(Name)"
 .struct = string.replace(struct,'_')
-const (
-	$(struct:no)Id uint8 = $(id)
-)
-
 // $(string.trim (.?''):left)
 type $(struct:no) struct {
 .if defined(socket)
@@ -526,6 +522,21 @@ const (
 .endfor
 )
 
+.max_name = 0
+.for message
+.   message.name = "$(message.name:c)"
+.   name = "$(Name)"
+.   name = string.replace(name,'_')
+.    if max_name < string.length(name)+2
+.        max_name = string.length(name)+2
+.    endif
+.endfor
+const (
+.for message
+	$("$(name:no)Id"%-$(max_name)s) uint8 = $(id)
+.endfor
+)
+
 type Transit interface {
 	Marshal() ([]byte, error)
 	Unmarshal(...[]byte) error
@@ -602,9 +613,6 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 
 	switch id {
 .for message
-.   message.name = "$(message.name:c)"
-.   name = "$(Name)"
-.   name = string.replace(name,'_')
 	case $(name:no)Id:
 		t = New$(name:no)()
 .endfor
@@ -640,7 +648,10 @@ func Clone(t Transit) Transit {
 .       endif
 .    endfor
 		return cloned
+.    if last ()
+.    else
 
+.endif
 .endfor
 	}
 
@@ -683,5 +694,5 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 		return strs[0], strs[1]
 	}
 
-	return "", ""
+	return
 }

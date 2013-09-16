@@ -8,10 +8,6 @@ import (
 	"errors"
 )
 
-const (
-	ShoutId uint8 = 3
-)
-
 // Send a message to a group
 type Shout struct {
 	address  []byte
