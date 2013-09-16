@@ -43,10 +43,10 @@
 .            echo "E: bad size $(size) for $(name)"
 .        endif
 .    elsif type = "octets"
-.        if !defined(size)
-.            echo "E: size should be set for octets type"
+.        if defined(size)
+.            field.gotype = "[$(size)]byte"
 .        else
-.        field.gotype = "[$(size)]byte"
+.            field.gotype = "[]byte"
 .        endif
 .    elsif type = "strings"
 .        field.gotype = "[]string"
@@ -122,8 +122,13 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	bufferSize += $(size)
 .    elsif type = "octets"
 
+.        if defined(size)
 	// $(name:no) is a block of [$(size)]byte
 	bufferSize += $(size)
+.        else
+	// $(name:no) is a block of []byte with one byte length
+	bufferSize += 1 + len($(self).$(fname:no))
+.        endif
 .    elsif type = "string"
 
 	// $(name:no) is a string with 1-byte length
@@ -170,7 +175,11 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 .    elsif type = "octets"
 
 	// $(name:no)
+.        if defined(size)
 	binary.Write(buffer, binary.BigEndian, $(self).$(fname:no))
+.        else
+	putBytes(buffer, $(self).$(fname:no))
+.        endif
 .    elsif type = "string"
 
 	// $(name:no)
@@ -231,7 +240,11 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	}
 .        endif
 .    elsif type = "octets"
+.        if defined(size)
 	binary.Read(buffer, binary.BigEndian, &$(self).$(fname:no))
+.        else
+	$(self).$(fname:no) = getBytes(buffer)
+.        endif
 .    elsif type = "string"
 	$(self).$(fname:no) = getString(buffer)
 .        if defined (field.value)
@@ -377,8 +390,12 @@ func Test$(struct:no)(t *testing.T) {
 .           if type = "number"
 	$(struct).Set$(name:no)(123)
 .           elsif type = "octets"
-.           data = "'z', " * size
+.               if defined(size)
+.                   data = "'z', " * size
 	$(struct).Set$(name:no)([$(size)]byte{$(data)})
+.               else
+	$(struct).Set$(name:no)([]byte{'z', 'y'})
+.               endif
 .           elsif type = "string"
 	$(struct).Set$(name:no)("Life is short but Now lasts for ever")
 .           elsif type = "strings"
@@ -392,8 +409,12 @@ func Test$(struct:no)(t *testing.T) {
 .           if type = "number"
 	$(struct).$(name:no) = 123
 .           elsif type = "octets"
-.           data = "'z', " * size
+.               if defined(size)
+.                   data = "'z', " * size
 	$(struct).$(name:no) = [$(size)]byte{$(data)}
+.               else
+	$(struct).$(name:no) = []byte{'z', 'y'}
+.               endif
 .           elsif type = "string"
 	$(struct).$(name:no) = "Life is short but Now lasts for ever"
 .           elsif type = "strings"
@@ -434,7 +455,8 @@ func Test$(struct:no)(t *testing.T) {
 		t.Fatalf("expected %d, got %d", 123, tr.$(fname:no))
 	}
 .       elsif type = "octets"
-.       data = "'z', " * size
+.           if defined(size)
+.           data = "'z', " * size
 	if len(tr.$(fname:no)) != $(size) {
 		t.Fatalf("mismatch octets size for %s", "$(fname:no)")
 	}
@@ -443,6 +465,16 @@ func Test$(struct:no)(t *testing.T) {
 			t.Fatalf("mismatch octets value for %s", "$(fname:no)")
 		}
 	}
+.           else
+	if len(tr.$(fname:no)) != 2 {
+		t.Fatalf("mismatch octets size for %s", "$(fname:no)")
+	}
+	for idx, b := range []byte{'z', 'y'} {
+		if tr.$(fname:no)[idx] != b {
+			t.Fatalf("mismatch octets value for %s", "$(fname:no)")
+		}
+	}
+.           endif
 .       elsif type = "string"
 	if tr.$(fname:no) != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.$(fname:no))
@@ -694,5 +726,21 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 		return strs[0], strs[1]
 	}
 
-	return
+	return "", ""
+}
+
+// putBytes marshals []byte into the buffer
+func putBytes(buffer *bytes.Buffer, data []byte) {
+	size := uint64(len(data))
+	binary.Write(buffer, binary.BigEndian, size)
+	binary.Write(buffer, binary.BigEndian, data)
+}
+
+// getBytes unmarshals []byte from the buffer
+func getBytes(buffer *bytes.Buffer) []byte {
+	var size uint64
+	binary.Read(buffer, binary.BigEndian, &size)
+	data := make([]byte, size)
+	binary.Read(buffer, binary.BigEndian, &data)
+	return data
 }
