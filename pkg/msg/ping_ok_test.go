@@ -41,18 +41,17 @@ func TestPingOk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	msg := transit.(*PingOk)
-	if msg.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Sequence())
+	tr := transit.(*PingOk)
+	if tr.Sequence() != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
 	}
 
-	err = msg.Send(input)
+	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +59,7 @@ func TestPingOk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(msg.Address()) {
-		t.Fatalf("expected %v, got %v", address, msg.Address())
+	if string(address) != string(tr.Address()) {
+		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
 }

@@ -101,7 +101,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (h *Hello) Unmarshal(frames [][]byte) error {
+func (h *Hello) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 

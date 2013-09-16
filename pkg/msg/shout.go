@@ -60,7 +60,7 @@ func (s *Shout) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (s *Shout) Unmarshal(frames [][]byte) error {
+func (s *Shout) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 
@@ -86,7 +86,9 @@ func (s *Shout) Unmarshal(frames [][]byte) error {
 	s.Group = getString(buffer)
 
 	// Content
-	s.Content = frames[0]
+	if 0 <= len(frames)-1 {
+		s.Content = frames[0]
+	}
 
 	return nil
 }

@@ -1,4 +1,4 @@
-<class name = "msg" signature = "1" title = "work with ZRE messages" path="../../pkg/msg">
+<class name = "msg" signature = "1" title = "work with ZRE messages" path="../../pkg/msg" socket="true">
 This is the ZRE protocol raw version.
 <include filename = "license.xml" />
 

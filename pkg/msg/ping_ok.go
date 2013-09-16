@@ -51,7 +51,7 @@ func (p *PingOk) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (p *PingOk) Unmarshal(frames [][]byte) error {
+func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 

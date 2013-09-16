@@ -52,7 +52,7 @@ func (w *Whisper) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (w *Whisper) Unmarshal(frames [][]byte) error {
+func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 
@@ -75,7 +75,9 @@ func (w *Whisper) Unmarshal(frames [][]byte) error {
 	binary.Read(buffer, binary.BigEndian, &w.sequence)
 
 	// Content
-	w.Content = frames[0]
+	if 0 <= len(frames)-1 {
+		w.Content = frames[0]
+	}
 
 	return nil
 }

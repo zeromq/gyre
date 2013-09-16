@@ -66,7 +66,7 @@ func (j *Join) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (j *Join) Unmarshal(frames [][]byte) error {
+func (j *Join) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 

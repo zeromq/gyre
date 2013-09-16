@@ -274,7 +274,7 @@ func (n *Node) handle() {
 			}
 
 		case frames := <-chans.In():
-			transit, err := msg.RecvRaw(frames, stype)
+			transit, err := msg.Unmarshal(stype, frames...)
 			if err != nil {
 				continue
 			}
@@ -324,6 +324,11 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	// Now process each command
 	switch m := transit.(type) {
 	case *msg.Hello:
+		// Store peer headers for future reference
+		for key, val := range m.Headers {
+			peer.Headers[key] = val
+		}
+
 		// Join peer to listed groups
 		for _, group := range m.Groups {
 			n.joinPeerGroup(peer, group)
@@ -331,11 +336,6 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 
 		// Hello command holds latest status of peer
 		peer.Status = m.Status
-
-		// Store peer headers for future reference
-		for key, val := range m.Headers {
-			peer.Headers[key] = val
-		}
 
 	case *msg.Whisper:
 		// Pass up to caller API as WHISPER event

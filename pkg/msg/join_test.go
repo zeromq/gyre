@@ -43,24 +43,23 @@ func TestJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	msg := transit.(*Join)
-	if msg.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Sequence())
+	tr := transit.(*Join)
+	if tr.Sequence() != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
 	}
-	if msg.Group != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.Group)
+	if tr.Group != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
 	}
-	if msg.Status != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Status)
+	if tr.Status != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Status)
 	}
 
-	err = msg.Send(input)
+	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +67,7 @@ func TestJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(msg.Address()) {
-		t.Fatalf("expected %v, got %v", address, msg.Address())
+	if string(address) != string(tr.Address()) {
+		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
 }

@@ -18,7 +18,7 @@ const (
 
 type Transit interface {
 	Marshal() ([]byte, error)
-	Unmarshal([][]byte) error
+	Unmarshal(...[]byte) error
 	String() string
 	Send(*zmq.Socket) error
 	SetAddress([]byte)
@@ -37,7 +37,7 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 		if err != nil {
 			return nil, err
 		}
-		t, err := RecvRaw(frames, socket.GetType())
+		t, err := Unmarshal(socket.GetType(), frames...)
 		if err != nil {
 			continue
 		}
@@ -45,8 +45,8 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 	}
 }
 
-// RecvRaw receives marshaled data from raw frames
-func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
+// Unmarshals data from raw frames
+func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
 	var (
 		buffer  *bytes.Buffer
 		address []byte
@@ -60,6 +60,7 @@ func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
 		address = frames[0]
 		frames = frames[1:]
 	}
+
 	// Check the signature
 	var signature uint16
 	buffer = bytes.NewBuffer(frames[0])
@@ -90,7 +91,7 @@ func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
 		t = NewPingOk()
 	}
 	t.SetAddress(address)
-	err = t.Unmarshal(frames)
+	err = t.Unmarshal(frames...)
 
 	return t, err
 }

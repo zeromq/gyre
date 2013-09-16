@@ -43,24 +43,23 @@ func TestShout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	msg := transit.(*Shout)
-	if msg.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Sequence())
+	tr := transit.(*Shout)
+	if tr.Sequence() != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
 	}
-	if msg.Group != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.Group)
+	if tr.Group != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
 	}
-	if string(msg.Content) != "Captcha Diem" {
-		t.Fatalf("expected %s, got %s", "Captcha Diem", msg.Content)
+	if string(tr.Content) != "Captcha Diem" {
+		t.Fatalf("expected %s, got %s", "Captcha Diem", tr.Content)
 	}
 
-	err = msg.Send(input)
+	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +67,7 @@ func TestShout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(msg.Address()) {
-		t.Fatalf("expected %v, got %v", address, msg.Address())
+	if string(address) != string(tr.Address()) {
+		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
 }

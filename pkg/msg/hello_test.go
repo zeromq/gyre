@@ -46,37 +46,36 @@ func TestHello(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	msg := transit.(*Hello)
-	if msg.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Sequence())
+	tr := transit.(*Hello)
+	if tr.Sequence() != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
 	}
-	if msg.Ipaddress != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.Ipaddress)
+	if tr.Ipaddress != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Ipaddress)
 	}
-	if msg.Mailbox != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Mailbox)
+	if tr.Mailbox != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Mailbox)
 	}
 	for idx, str := range []string{"Name: Brutus", "Age: 43"} {
-		if msg.Groups[idx] != str {
-			t.Fatalf("expected %s, got %s", str, msg.Groups[idx])
+		if tr.Groups[idx] != str {
+			t.Fatalf("expected %s, got %s", str, tr.Groups[idx])
 		}
 	}
-	if msg.Status != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.Status)
+	if tr.Status != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.Status)
 	}
 	for key, val := range map[string]string{"Name": "Brutus", "Age": "43"} {
-		if msg.Headers[key] != val {
-			t.Fatalf("expected %s, got %s", val, msg.Headers[key])
+		if tr.Headers[key] != val {
+			t.Fatalf("expected %s, got %s", val, tr.Headers[key])
 		}
 	}
 
-	err = msg.Send(input)
+	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +83,7 @@ func TestHello(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(msg.Address()) {
-		t.Fatalf("expected %v, got %v", address, msg.Address())
+	if string(address) != string(tr.Address()) {
+		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
 }

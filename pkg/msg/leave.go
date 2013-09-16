@@ -66,7 +66,7 @@ func (l *Leave) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func (l *Leave) Unmarshal(frames [][]byte) error {
+func (l *Leave) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 

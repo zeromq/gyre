@@ -24,7 +24,8 @@
 .
 .echo "Generating $(name).go ..."
 .output "$(path)/$(name).go"
-.max_length = 7 # 7 = number of characters of "Address"
+.# 7 = number of characters of "Address"
+.max_length = defined(socket) ?? 7 ? 0
 .for field
 .    field.name = "$(field.name:c)"
 .    field.name = "$(field.Name)"
@@ -42,7 +43,11 @@
 .            echo "E: bad size $(size) for $(name)"
 .        endif
 .    elsif type = "octets"
+.        if !defined(size)
+.            echo "E: size should be set for octets type"
+.        else
 .        field.gotype = "[$(size)]byte"
+.        endif
 .    elsif type = "strings"
 .        field.gotype = "[]string"
 .    elsif type = "dictionary"
@@ -68,8 +73,10 @@
 package $(class.name)
 
 import (
+.if defined(socket)
 	zmq "github.com/armen/go-zmq"
 
+.endif
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -83,7 +90,9 @@ const (
 
 // $(string.trim (.?''):left)
 type $(struct:no) struct {
+.if defined(socket)
 	$("address"%-$(max_length + 1)s)[]byte
+.endif
 .for field
 .    fname = defined(header) ?? "$(name)" ? "$(name:no)"
 	$(fname:no%-$(max_length + 1)s)$(gotype)
@@ -117,7 +126,7 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	bufferSize += $(size)
 .    elsif type = "octets"
 
-	// $(name:no) is a block of $(size) bytes
+	// $(name:no) is a block of [$(size)]byte
 	bufferSize += $(size)
 .    elsif type = "string"
 
@@ -195,7 +204,7 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 }
 
 // Unmarshal unserializes the message
-func ($(self) *$(struct:no)) Unmarshal(frames [][]byte) error {
+func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
 
@@ -250,13 +259,16 @@ func ($(self) *$(struct:no)) Unmarshal(frames [][]byte) error {
 		$(self).$(fname:no)[key] = val
 	}
 .    elsif type = "frame"
-	$(self).$(fname:no) = frames[$(frames)]
+	if $(frames) <= len(frames)-1 {
+		$(self).$(fname:no) = frames[$(frames)]
+	}
 .    frames = frames + 1
 .    endif
 .endfor
 
 	return nil
 }
+.if defined(socket)
 
 // Send sends marshaled data through 0mq socket
 func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
@@ -308,6 +320,7 @@ func ($(self) *$(struct:no)) Address() []byte {
 func ($(self) *$(struct:no)) SetAddress(address []byte) {
 	$(self).address = address
 }
+.endif
 .for field where defined(header)
 
 // Set$(name:no) sets the $(name)
@@ -325,12 +338,15 @@ func ($(self) *$(struct:no)) $(name:no)() $(gotype) {
 package $(class.name)
 
 import (
+.if defined(socket)
 	zmq "github.com/armen/go-zmq"
 
+.endif
 	"testing"
 )
 
 func Test$(struct:no)(t *testing.T) {
+.if defined(socket)
 	context, err := zmq.NewContext()
 	if err != nil {
 		t.Fatal(err)
@@ -357,6 +373,7 @@ func Test$(struct:no)(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+.endif
 	// Create a $(Name) message and send it through the wire
 	$(struct) := New$(struct:no)()
 .   for field where !defined (value)
@@ -393,57 +410,70 @@ func Test$(struct:no)(t *testing.T) {
 .       endif
 .   endfor
 
+.if defined(socket)
 	err = $(struct).Send(output)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
 	}
+.else
+	marshaled, err := $(struct).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transit, err := Unmarshal(marshaled)
+	if err != nil {
+		t.Fatal(err)
+	}
+.endif
 
-	msg := transit.(*$(struct:no))
+	tr := transit.(*$(struct:no))
 .   for field where !defined (value)
 .       fname = defined(header) ?? "$(name:no)()" ? "$(name:no)"
 .       if type = "number"
-	if msg.$(fname:no) != 123 {
-		t.Fatalf("expected %d, got %d", 123, msg.$(fname:no))
+	if tr.$(fname:no) != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.$(fname:no))
 	}
 .       elsif type = "octets"
 .       data = "'z', " * size
-	if len(msg.$(fname:no)) != $(size) {
+	if len(tr.$(fname:no)) != $(size) {
 		t.Fatalf("mismatch octets size for %s", "$(fname:no)")
 	}
 	for idx, b := range [$(size)]byte{$(data)} {
-		if msg.$(fname:no)[idx] != b {
+		if tr.$(fname:no)[idx] != b {
 			t.Fatalf("mismatch octets value for %s", "$(fname:no)")
 		}
 	}
 .       elsif type = "string"
-	if msg.$(fname:no) != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", msg.$(fname:no))
+	if tr.$(fname:no) != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.$(fname:no))
 	}
 .       elsif type = "strings"
 	for idx, str := range []string{"Name: Brutus", "Age: 43"} {
-		if msg.$(fname:no)[idx] != str {
-			t.Fatalf("expected %s, got %s", str, msg.$(fname:no)[idx])
+		if tr.$(fname:no)[idx] != str {
+			t.Fatalf("expected %s, got %s", str, tr.$(fname:no)[idx])
 		}
 	}
 .       elsif type = "dictionary"
 	for key, val := range map[string]string{"Name": "Brutus", "Age": "43"} {
-		if msg.$(fname:no)[key] != val {
-			t.Fatalf("expected %s, got %s", val, msg.$(fname:no)[key])
+		if tr.$(fname:no)[key] != val {
+			t.Fatalf("expected %s, got %s", val, tr.$(fname:no)[key])
 		}
 	}
 .       elsif type = "frame"
-	if string(msg.$(fname:no)) != "Captcha Diem" {
-		t.Fatalf("expected %s, got %s", "Captcha Diem", msg.$(fname:no))
+.           if defined(socket)
+	if string(tr.$(fname:no)) != "Captcha Diem" {
+		t.Fatalf("expected %s, got %s", "Captcha Diem", tr.$(fname:no))
 	}
+.           endif
 .       endif
 .   endfor
 
-	err = msg.Send(input)
+.if defined(socket)
+	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -451,9 +481,19 @@ func Test$(struct:no)(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(msg.Address()) {
-		t.Fatalf("expected %v, got %v", address, msg.Address())
+	if string(address) != string(tr.Address()) {
+		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
+.else
+	marshaled, err = $(struct).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transit, err = Unmarshal(marshaled)
+	if err != nil {
+		t.Fatal(err)
+	}
+.endif
 }
 .endfor
 .echo "Generating $(name).go ..."
@@ -461,8 +501,10 @@ func Test$(struct:no)(t *testing.T) {
 package $(class.name)
 
 import (
+.if defined(socket)
 	zmq "github.com/armen/go-zmq"
 
+.endif
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -486,16 +528,19 @@ const (
 
 type Transit interface {
 	Marshal() ([]byte, error)
-	Unmarshal([][]byte) error
+	Unmarshal(...[]byte) error
 	String() string
+.if defined(socket)
 	Send(*zmq.Socket) error
 	SetAddress([]byte)
 	Address() []byte
+.endif
 .for field where defined(header)
 	Set$(name:no)($(gotype))
 	$(name:no)() $(gotype)
 .endfor
 }
+.if defined(socket)
 
 // Recv receives marshaled data from 0mq socket
 func Recv(socket *zmq.Socket) (t Transit, err error) {
@@ -507,20 +552,30 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 		if err != nil {
 			return nil, err
 		}
-		t, err := RecvRaw(frames, socket.GetType())
+		t, err := Unmarshal(socket.GetType(), frames...)
 		if err != nil {
 			continue
 		}
 		return t, err
 	}
 }
+.endif
 
-// RecvRaw receives marshaled data from raw frames
-func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
+// Unmarshals data from raw frames
+.if defined(socket)
+func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
+.else
+func Unmarshal(frames ...[]byte) (t Transit, err error) {
+.endif
+.if defined(socket)
 	var (
 		buffer  *bytes.Buffer
 		address []byte
 	)
+.else
+	var buffer *bytes.Buffer
+.endif
+.if defined(socket)
 
 	// If we're reading from a ROUTER socket, get address
 	if sType == zmq.Router {
@@ -530,6 +585,8 @@ func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
 		address = frames[0]
 		frames = frames[1:]
 	}
+.endif
+
 	// Check the signature
 	var signature uint16
 	buffer = bytes.NewBuffer(frames[0])
@@ -552,8 +609,10 @@ func RecvRaw(frames [][]byte, sType zmq.SocketType) (t Transit, err error) {
 		t = New$(name:no)()
 .endfor
 	}
+.if defined(socket)
 	t.SetAddress(address)
-	err = t.Unmarshal(frames)
+.endif
+	err = t.Unmarshal(frames...)
 
 	return t, err
 }
