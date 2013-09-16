@@ -22,8 +22,8 @@
 .       endfor
 .   endfor
 .
-.echo "Generating ../../pkg/msg/$(name).go ..."
-.output "../../pkg/msg/$(name).go"
+.echo "Generating $(name).go ..."
+.output "$(path)/$(name).go"
 .max_length = 7 # 7 = number of characters of "Address"
 .for field
 .    field.name = "$(field.name:c)"
@@ -320,8 +320,8 @@ func ($(self) *$(struct:no)) $(name:no)() $(gotype) {
 	return $(self).$(name)
 }
 .endfor
-.echo "Generating ../../pkg/msg/$(name)_test.go ..."
-.output "../../pkg/msg/$(name)_test.go"
+.echo "Generating $(name)_test.go ..."
+.output "$(path)/$(name)_test.go"
 package $(class.name)
 
 import (
@@ -456,8 +456,8 @@ func Test$(struct:no)(t *testing.T) {
 	}
 }
 .endfor
-.echo "Generating ../../pkg/msg/$(name).go ..."
-.output "../../pkg/msg/$(name).go"
+.echo "Generating $(name).go ..."
+.output "$(path)/$(name).go"
 package $(class.name)
 
 import (
