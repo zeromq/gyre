@@ -726,7 +726,7 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 		return strs[0], strs[1]
 	}
 
-	return "", ""
+	return
 }
 
 // putBytes marshals []byte into the buffer
