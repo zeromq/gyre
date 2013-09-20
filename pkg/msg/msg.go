@@ -202,3 +202,19 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 
 	return
 }
+
+// putBytes marshals []byte into the buffer
+func putBytes(buffer *bytes.Buffer, data []byte) {
+	size := uint64(len(data))
+	binary.Write(buffer, binary.BigEndian, size)
+	binary.Write(buffer, binary.BigEndian, data)
+}
+
+// getBytes unmarshals []byte from the buffer
+func getBytes(buffer *bytes.Buffer) []byte {
+	var size uint64
+	binary.Read(buffer, binary.BigEndian, &size)
+	data := make([]byte, size)
+	binary.Read(buffer, binary.BigEndian, &data)
+	return data
+}
