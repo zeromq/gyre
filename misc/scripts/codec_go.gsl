@@ -253,17 +253,17 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	}
 .        endif
 .    elsif type = "strings"
-.        size = "$(fname)Size"
-	var $(size:no) byte
-	binary.Read(buffer, binary.BigEndian, &$(size:no))
-	for ; $(size:no) != 0; $(size:no)-- {
+.        _size = "$(fname)Size"
+	var $(_size:no) byte
+	binary.Read(buffer, binary.BigEndian, &$(_size:no))
+	for ; $(_size:no) != 0; $(_size:no)-- {
 		$(self).$(fname:no) = append($(self).$(fname:no), getString(buffer))
 	}
 .    elsif type = "dictionary"
-.        size = "$(fname)Size"
-	var $(size:no) byte
-	binary.Read(buffer, binary.BigEndian, &$(size:no))
-	for ; $(size:no) != 0; $(size:no)-- {
+.        _size = "$(fname)Size"
+	var $(_size:no) byte
+	binary.Read(buffer, binary.BigEndian, &$(_size:no))
+	for ; $(_size:no) != 0; $(_size:no)-- {
 		key, val := getKeyValString(buffer)
 		$(self).$(fname:no)[key] = val
 	}
