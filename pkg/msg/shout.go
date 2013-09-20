@@ -66,13 +66,13 @@ func (s *Shout) Unmarshal(frames ...[]byte) error {
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
-		return errors.New("malformed message")
+		return errors.New("invalid signature")
 	}
 
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != ShoutId {
-		return errors.New("malformed message")
+		return errors.New("malformed Shout message")
 	}
 
 	// Sequence

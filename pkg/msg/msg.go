@@ -65,7 +65,7 @@ func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
 	// If we're reading from a ROUTER socket, get address
 	if sType == zmq.Router {
 		if len(frames) <= 1 {
-			return nil, errors.New("malformed message")
+			return nil, errors.New("no address frame")
 		}
 		address = frames[0]
 		frames = frames[1:]
@@ -77,7 +77,7 @@ func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		// Invalid signature
-		return nil, errors.New("malformed message")
+		return nil, errors.New("invalid signature")
 	}
 
 	// Get message id and parse per message type

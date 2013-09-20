@@ -219,13 +219,13 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
-		return errors.New("malformed message")
+		return errors.New("invalid signature")
 	}
 
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != $(struct:no)Id {
-		return errors.New("malformed message")
+		return errors.New("malformed $(struct:no) message")
 	}
 .frames = 0
 .for field
@@ -236,7 +236,7 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	binary.Read(buffer, binary.BigEndian, &$(self).$(fname:no))
 .        if defined (field.value)
 	if $(self).$(fname:no) != $(field.value:) {
-		return errors.New("malformed message")
+		return errors.New("malformed $(struct:no) message")
 	}
 .        endif
 .    elsif type = "octets"
@@ -249,7 +249,7 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	$(self).$(fname:no) = getString(buffer)
 .        if defined (field.value)
 	if $(self).$(fname:no) != "$(field.value:)" {
-		return errors.New("malformed message")
+		return errors.New("malformed $(struct:no) message")
 	}
 .        endif
 .    elsif type = "strings"
@@ -623,7 +623,7 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	// If we're reading from a ROUTER socket, get address
 	if sType == zmq.Router {
 		if len(frames) <= 1 {
-			return nil, errors.New("malformed message")
+			return nil, errors.New("no address frame")
 		}
 		address = frames[0]
 		frames = frames[1:]
@@ -636,7 +636,7 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		// Invalid signature
-		return nil, errors.New("malformed message")
+		return nil, errors.New("invalid signature")
 	}
 
 	// Get message id and parse per message type

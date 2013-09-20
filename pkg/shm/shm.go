@@ -86,6 +86,14 @@ func (n *node) Props() kvs {
 	return n.props
 }
 
+// SetProps sets properties from a map
+func (n *node) SetProps(props map[string]string) kvs {
+	for key, val := range props {
+		n.props[key] = val
+	}
+	return n.props
+}
+
 // Sets a new property or replaces it with new one.
 func (kv kvs) Set(key, val string) kvs {
 	kv[key] = val
