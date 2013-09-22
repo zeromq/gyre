@@ -1,16 +1,17 @@
 package zre
 
 import (
-	zmq "github.com/armen/go-zmq"
 	"github.com/armen/go-zre/pkg/beacon"
 	"github.com/armen/go-zre/pkg/msg"
+	zmq "github.com/vaughan0/go-zmq"
 
 	"bytes"
-	"crypto/rand"
+	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,11 @@ const (
 	zreDiscoveryPort = 5670
 
 	beaconVersion = 0x1
+
+	// Port range 0xc000~0xffff is defined by IANA for dynamic or private ports
+	// We use this when choosing a port for dynamic binding
+	dynPortFrom uint16 = 0xc000
+	dynPortTo   uint16 = 0xffff
 )
 
 const (
@@ -85,15 +91,20 @@ func NewNode() (node *Node, err error) {
 		return nil, err
 	}
 
-	err = node.inbox.Bind("tcp://*:*")
-	if err != nil {
-		return nil, err
+	for i := dynPortFrom; i <= dynPortTo; i++ {
+		rand.Seed(time.Now().UTC().UnixNano())
+		port := uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
+		err = node.inbox.Bind(fmt.Sprintf("tcp://*:%d", port))
+		if err == nil {
+			log.Printf("tcp://*:%d", port)
+			node.Port = port
+			break
+		}
 	}
-	node.Port = node.inbox.Port()
 
 	// Generate random uuid
 	node.Uuid = make([]byte, 16)
-	io.ReadFull(rand.Reader, node.Uuid)
+	io.ReadFull(crand.Reader, node.Uuid)
 	node.Identity = fmt.Sprintf("%X", node.Uuid)
 
 	s := &sig{}

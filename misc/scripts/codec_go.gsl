@@ -74,7 +74,7 @@ package $(class.name)
 
 import (
 .if defined(socket)
-	zmq "github.com/armen/go-zmq"
+	zmq "github.com/vaughan0/go-zmq"
 
 .endif
 	"bytes"
@@ -348,7 +348,7 @@ package $(class.name)
 
 import (
 .if defined(socket)
-	zmq "github.com/armen/go-zmq"
+	zmq "github.com/vaughan0/go-zmq"
 
 .endif
 	"testing"
@@ -530,7 +530,7 @@ package $(class.name)
 
 import (
 .if defined(socket)
-	zmq "github.com/armen/go-zmq"
+	zmq "github.com/vaughan0/go-zmq"
 
 .endif
 	"bytes"

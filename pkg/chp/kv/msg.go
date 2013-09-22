@@ -1,7 +1,7 @@
 package msg
 
 import (
-	zmq "github.com/armen/go-zmq"
+	zmq "github.com/vaughan0/go-zmq"
 
 	"crypto/rand"
 	"encoding/binary"
