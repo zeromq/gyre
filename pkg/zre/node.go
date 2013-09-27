@@ -96,7 +96,6 @@ func NewNode() (node *Node, err error) {
 		port := uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
 		err = node.inbox.Bind(fmt.Sprintf("tcp://*:%d", port))
 		if err == nil {
-			log.Printf("tcp://*:%d", port)
 			node.Port = port
 			break
 		}
