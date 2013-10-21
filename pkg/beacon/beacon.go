@@ -35,20 +35,19 @@ type Signal struct {
 
 type Beacon struct {
 	Signals    chan *Signal
-	Interval   time.Duration
-	Hostname   string
-	Addr       string
-	Port       int
+	conn       *net.UDPConn  // UDP connection for send/recv
+	Port       int           // UDP port number we work on
+	Interval   time.Duration // Beacon broadcast interval
+	noecho     bool          // Ignore own (unique) beacons
+	terminated bool          // API shut us down
+	transmit   []byte        // Beacon transmit data
+	filter     []byte        // Beacon filter data
+	Addr       string        // Our own address
+	mcast      *net.UDPAddr  // Our broadcast/multicast address
 	ticker     <-chan time.Time
-	conn       *net.UDPConn
-	noecho     bool
-	terminated bool
-	transmit   []byte
-	filter     []byte
-	mcast      *net.UDPAddr
 }
 
-// New creates a new beacon
+// Creates a new beacon on a certain UDP port.
 func New(port int) (*Beacon, error) {
 
 	var (
@@ -88,7 +87,6 @@ func New(port int) (*Beacon, error) {
 	b := &Beacon{
 		Signals:  make(chan *Signal),
 		Interval: defaultInterval,
-		Hostname: ip.String(),
 		Addr:     ip.String(),
 		Port:     port,
 		conn:     conn,
@@ -101,25 +99,25 @@ func New(port int) (*Beacon, error) {
 	return b, nil
 }
 
-// Close terminates the beacon
+// Terminates the beacon.
 func (b *Beacon) Close() {
 	b.terminated = true
 	close(b.Signals)
 }
 
-// SetInterval sets broadcast interval
+// SetInterval sets broadcast interval.
 func (b *Beacon) SetInterval(interval time.Duration) *Beacon {
 	b.Interval = interval
 	return b
 }
 
-// NoEcho filters out any beacon that looks exactly like ours
+// NoEcho filters out any beacon that looks exactly like ours.
 func (b *Beacon) NoEcho() *Beacon {
 	b.noecho = true
 	return b
 }
 
-// Publish starts broadcasting beacon to peers at the specified interval
+// Publish starts broadcasting beacon to peers at the specified interval.
 func (b *Beacon) Publish(transmit []byte) *Beacon {
 	b.transmit = transmit
 	if b.Interval == 0 {
@@ -130,25 +128,25 @@ func (b *Beacon) Publish(transmit []byte) *Beacon {
 	return b
 }
 
-// Silence stops broadcasting beacon
+// Silence stops broadcasting beacon.
 func (b *Beacon) Silence() *Beacon {
 	b.transmit = nil
 	return b
 }
 
-// Subscribe starts listening to other peers; zero-sized filter means get everything
+// Subscribe starts listening to other peers; zero-sized filter means get everything.
 func (b *Beacon) Subscribe(filter []byte) *Beacon {
 	b.filter = filter
 	return b
 }
 
-// Unsubscribe stops listening to other peers
+// Unsubscribe stops listening to other peers.
 func (b *Beacon) Unsubscribe() *Beacon {
 	b.filter = nil
 	return b
 }
 
-// Chan returns Signals channel
+// Chan returns Signals channel.
 func (b *Beacon) Chan() chan *Signal {
 	return b.Signals
 }
@@ -167,7 +165,7 @@ func (b *Beacon) listen() {
 		}
 
 		if send {
-			// Received a signal, send it to the Signals channel
+			// Send the arrived signal to the Signals channel
 			b.Signals <- &Signal{addr.String(), buff[:n]}
 		}
 	}
