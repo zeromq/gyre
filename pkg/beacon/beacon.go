@@ -14,6 +14,9 @@
 // calls through the pipe (as zbeacon does) instead it modifies beacon
 // struct directly.
 //
+// For more information please visit:
+//		http://hintjens.com/blog:32
+//
 package beacon
 
 import (
@@ -164,9 +167,12 @@ func (b *Beacon) listen() {
 			send = !bytes.Equal(buff[:n], b.transmit)
 		}
 
-		if send {
+		if send && !b.terminated {
 			// Send the arrived signal to the Signals channel
-			b.Signals <- &Signal{addr.String(), buff[:n]}
+			select {
+			case b.Signals <- &Signal{addr.String(), buff[:n]}:
+			default:
+			}
 		}
 	}
 }
