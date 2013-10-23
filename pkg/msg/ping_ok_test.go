@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// Yay! Test function.
 func TestPingOk(t *testing.T) {
 	context, err := zmq.NewContext()
 	if err != nil {

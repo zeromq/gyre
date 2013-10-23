@@ -37,7 +37,7 @@ type Transit interface {
 	Sequence() uint16
 }
 
-// Recv receives marshaled data from 0mq socket
+// Receives marshaled data from 0mq socket.
 func Recv(socket *zmq.Socket) (t Transit, err error) {
 	// Read valid message frame from socket; we loop over any
 	// garbage data we might receive from badly-connected peers
@@ -55,7 +55,7 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 	}
 }
 
-// Unmarshals data from raw frames
+// Unmarshals data from raw frames.
 func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
 	var (
 		buffer  *bytes.Buffer
@@ -106,7 +106,7 @@ func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
 	return t, err
 }
 
-// Clone clones a message
+// Clones a message.
 func Clone(t Transit) Transit {
 	switch msg := t.(type) {
 	case *Hello:
@@ -164,7 +164,7 @@ func Clone(t Transit) Transit {
 	return nil
 }
 
-// putString marshals a string into the buffer
+// putString marshals a string into the buffer.
 func putString(buffer *bytes.Buffer, str string) {
 	size := len(str)
 	if size > StringMax {
@@ -176,13 +176,13 @@ func putString(buffer *bytes.Buffer, str string) {
 	binary.Write(buffer, binary.BigEndian, []byte(str))
 }
 
-// putKeyValString marshals a key=val pair into the buffer
+// putKeyValString marshals a key=val pair into the buffer.
 func putKeyValString(buffer *bytes.Buffer, key, val string) {
 	str := fmt.Sprintf("%s=%s", key, val)
 	putString(buffer, str)
 }
 
-// getString unmarshals a string from the buffer
+// getString unmarshals a string from the buffer.
 func getString(buffer *bytes.Buffer) string {
 	var size byte
 	binary.Read(buffer, binary.BigEndian, &size)
@@ -191,7 +191,7 @@ func getString(buffer *bytes.Buffer) string {
 	return string(str)
 }
 
-// getKeyValString unmarshals a key=val pair from the buffer
+// getKeyValString unmarshals a key=val pair from the buffer.
 func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 	str := getString(buffer)
 	strs := strings.SplitN(str, "=", 2)
@@ -203,14 +203,14 @@ func getKeyValString(buffer *bytes.Buffer) (key, val string) {
 	return
 }
 
-// putBytes marshals []byte into the buffer
+// putBytes marshals []byte into the buffer.
 func putBytes(buffer *bytes.Buffer, data []byte) {
 	size := uint64(len(data))
 	binary.Write(buffer, binary.BigEndian, size)
 	binary.Write(buffer, binary.BigEndian, data)
 }
 
-// getBytes unmarshals []byte from the buffer
+// getBytes unmarshals []byte from the buffer.
 func getBytes(buffer *bytes.Buffer) []byte {
 	var size uint64
 	binary.Read(buffer, binary.BigEndian, &size)

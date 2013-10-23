@@ -19,19 +19,19 @@ type Hello struct {
 	Headers   map[string]string
 }
 
-// New creates new Hello message
+// New creates new Hello message.
 func NewHello() *Hello {
 	hello := &Hello{}
 	hello.Headers = make(map[string]string)
 	return hello
 }
 
-// String returns print friendly name
+// String returns print friendly name.
 func (h *Hello) String() string {
 	return "HELLO"
 }
 
-// Marshal serializes the message
+// Marshal serializes the message.
 func (h *Hello) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
@@ -96,7 +96,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshal unserializes the message
+// Unmarshals the message.
 func (h *Hello) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
@@ -146,7 +146,7 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Send sends marshaled data through 0mq socket
+// Sends marshaled data through 0mq socket.
 func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	frame, err := h.Marshal()
 	if err != nil {
@@ -171,23 +171,23 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 }
 
 // Address returns the address for this message, address should is set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (h *Hello) Address() []byte {
 	return h.address
 }
 
 // SetAddress sets the address for this message, address should be set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (h *Hello) SetAddress(address []byte) {
 	h.address = address
 }
 
-// SetSequence sets the sequence
+// SetSequence sets the sequence.
 func (h *Hello) SetSequence(sequence uint16) {
 	h.sequence = sequence
 }
 
-// Sequence returns the sequence
+// Sequence returns the sequence.
 func (h *Hello) Sequence() uint16 {
 	return h.sequence
 }

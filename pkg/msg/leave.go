@@ -16,18 +16,18 @@ type Leave struct {
 	Status   byte
 }
 
-// New creates new Leave message
+// New creates new Leave message.
 func NewLeave() *Leave {
 	leave := &Leave{}
 	return leave
 }
 
-// String returns print friendly name
+// String returns print friendly name.
 func (l *Leave) String() string {
 	return "LEAVE"
 }
 
-// Marshal serializes the message
+// Marshal serializes the message.
 func (l *Leave) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
@@ -61,7 +61,7 @@ func (l *Leave) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshal unserializes the message
+// Unmarshals the message.
 func (l *Leave) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
@@ -93,7 +93,7 @@ func (l *Leave) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Send sends marshaled data through 0mq socket
+// Sends marshaled data through 0mq socket.
 func (l *Leave) Send(socket *zmq.Socket) (err error) {
 	frame, err := l.Marshal()
 	if err != nil {
@@ -118,23 +118,23 @@ func (l *Leave) Send(socket *zmq.Socket) (err error) {
 }
 
 // Address returns the address for this message, address should is set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (l *Leave) Address() []byte {
 	return l.address
 }
 
 // SetAddress sets the address for this message, address should be set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (l *Leave) SetAddress(address []byte) {
 	l.address = address
 }
 
-// SetSequence sets the sequence
+// SetSequence sets the sequence.
 func (l *Leave) SetSequence(sequence uint16) {
 	l.sequence = sequence
 }
 
-// Sequence returns the sequence
+// Sequence returns the sequence.
 func (l *Leave) Sequence() uint16 {
 	return l.sequence
 }

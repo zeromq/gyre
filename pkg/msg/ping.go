@@ -14,18 +14,18 @@ type Ping struct {
 	sequence uint16
 }
 
-// New creates new Ping message
+// New creates new Ping message.
 func NewPing() *Ping {
 	ping := &Ping{}
 	return ping
 }
 
-// String returns print friendly name
+// String returns print friendly name.
 func (p *Ping) String() string {
 	return "PING"
 }
 
-// Marshal serializes the message
+// Marshal serializes the message.
 func (p *Ping) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
@@ -46,7 +46,7 @@ func (p *Ping) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshal unserializes the message
+// Unmarshals the message.
 func (p *Ping) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
@@ -72,7 +72,7 @@ func (p *Ping) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Send sends marshaled data through 0mq socket
+// Sends marshaled data through 0mq socket.
 func (p *Ping) Send(socket *zmq.Socket) (err error) {
 	frame, err := p.Marshal()
 	if err != nil {
@@ -97,23 +97,23 @@ func (p *Ping) Send(socket *zmq.Socket) (err error) {
 }
 
 // Address returns the address for this message, address should is set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (p *Ping) Address() []byte {
 	return p.address
 }
 
 // SetAddress sets the address for this message, address should be set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (p *Ping) SetAddress(address []byte) {
 	p.address = address
 }
 
-// SetSequence sets the sequence
+// SetSequence sets the sequence.
 func (p *Ping) SetSequence(sequence uint16) {
 	p.sequence = sequence
 }
 
-// Sequence returns the sequence
+// Sequence returns the sequence.
 func (p *Ping) Sequence() uint16 {
 	return p.sequence
 }

@@ -16,18 +16,18 @@ type Shout struct {
 	Content  []byte
 }
 
-// New creates new Shout message
+// New creates new Shout message.
 func NewShout() *Shout {
 	shout := &Shout{}
 	return shout
 }
 
-// String returns print friendly name
+// String returns print friendly name.
 func (s *Shout) String() string {
 	return "SHOUT"
 }
 
-// Marshal serializes the message
+// Marshal serializes the message.
 func (s *Shout) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
@@ -55,7 +55,7 @@ func (s *Shout) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshal unserializes the message
+// Unmarshals the message.
 func (s *Shout) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
@@ -89,7 +89,7 @@ func (s *Shout) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Send sends marshaled data through 0mq socket
+// Sends marshaled data through 0mq socket.
 func (s *Shout) Send(socket *zmq.Socket) (err error) {
 	frame, err := s.Marshal()
 	if err != nil {
@@ -116,23 +116,23 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 }
 
 // Address returns the address for this message, address should is set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (s *Shout) Address() []byte {
 	return s.address
 }
 
 // SetAddress sets the address for this message, address should be set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (s *Shout) SetAddress(address []byte) {
 	s.address = address
 }
 
-// SetSequence sets the sequence
+// SetSequence sets the sequence.
 func (s *Shout) SetSequence(sequence uint16) {
 	s.sequence = sequence
 }
 
-// Sequence returns the sequence
+// Sequence returns the sequence.
 func (s *Shout) Sequence() uint16 {
 	return s.sequence
 }

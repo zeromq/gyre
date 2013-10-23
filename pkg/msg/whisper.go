@@ -15,18 +15,18 @@ type Whisper struct {
 	Content  []byte
 }
 
-// New creates new Whisper message
+// New creates new Whisper message.
 func NewWhisper() *Whisper {
 	whisper := &Whisper{}
 	return whisper
 }
 
-// String returns print friendly name
+// String returns print friendly name.
 func (w *Whisper) String() string {
 	return "WHISPER"
 }
 
-// Marshal serializes the message
+// Marshal serializes the message.
 func (w *Whisper) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
@@ -47,7 +47,7 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshal unserializes the message
+// Unmarshals the message.
 func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	frame := frames[0]
 	frames = frames[1:]
@@ -78,7 +78,7 @@ func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Send sends marshaled data through 0mq socket
+// Sends marshaled data through 0mq socket.
 func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 	frame, err := w.Marshal()
 	if err != nil {
@@ -105,23 +105,23 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 }
 
 // Address returns the address for this message, address should is set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (w *Whisper) Address() []byte {
 	return w.address
 }
 
 // SetAddress sets the address for this message, address should be set
-// whenever talking to a ROUTER
+// whenever talking to a ROUTER.
 func (w *Whisper) SetAddress(address []byte) {
 	w.address = address
 }
 
-// SetSequence sets the sequence
+// SetSequence sets the sequence.
 func (w *Whisper) SetSequence(sequence uint16) {
 	w.sequence = sequence
 }
 
-// Sequence returns the sequence
+// Sequence returns the sequence.
 func (w *Whisper) Sequence() uint16 {
 	return w.sequence
 }
