@@ -125,7 +125,7 @@ func NewNode() (node *Node, err error) {
 	if err != nil {
 		return nil, err
 	}
-	node.Host = node.Beacon.Hostname
+	node.Host = node.Beacon.Addr
 	node.Beacon.NoEcho()
 	node.Beacon.Subscribe([]byte("ZRE"))
 	node.Beacon.Publish(buffer.Bytes())
