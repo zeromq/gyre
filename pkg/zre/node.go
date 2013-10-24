@@ -73,7 +73,7 @@ type Node struct {
 	Headers    map[string]string // Our header values
 }
 
-// NewNode creates a new node
+// NewNode creates a new node.
 func NewNode() (node *Node, err error) {
 	node = &Node{
 		quit:       make(chan struct{}),
@@ -135,6 +135,7 @@ func NewNode() (node *Node, err error) {
 	return
 }
 
+// Sends message to single peer. peer ID is first frame in message.
 func (n *Node) Whisper(identity string, content []byte) *Node {
 	n.Commands <- &Event{
 		Type:    EventWhisper,
@@ -144,6 +145,7 @@ func (n *Node) Whisper(identity string, content []byte) *Node {
 	return n
 }
 
+// Sends message to a group of peers.
 func (n *Node) Shout(group string, content []byte) *Node {
 	n.Commands <- &Event{
 		Type:    EventShout,
@@ -153,6 +155,7 @@ func (n *Node) Shout(group string, content []byte) *Node {
 	return n
 }
 
+// Joins a group.
 func (n *Node) Join(group string) *Node {
 	n.Commands <- &Event{
 		Type:  EventJoin,
