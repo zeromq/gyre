@@ -1,8 +1,8 @@
-package zre
+package gyre
 
 import (
-	"github.com/armen/go-zre/pkg/beacon"
-	"github.com/armen/go-zre/pkg/msg"
+	"github.com/armen/gyre/beacon"
+	"github.com/armen/gyre/msg"
 	zmq "github.com/vaughan0/go-zmq"
 
 	"bytes"
@@ -125,7 +125,7 @@ func NewNode() (node *Node, err error) {
 	if err != nil {
 		return nil, err
 	}
-	node.Host = node.Beacon.Addr
+	node.Host = node.Beacon.Addr()
 	node.Beacon.NoEcho()
 	node.Beacon.Subscribe([]byte("ZRE"))
 	node.Beacon.Publish(buffer.Bytes())
@@ -293,7 +293,7 @@ func (n *Node) handle() {
 			}
 			n.recvFromPeer(transit)
 
-		case s := <-n.Beacon.Chan():
+		case s := <-n.Beacon.Signals():
 			n.recvFromBeacon(s)
 
 		case err := <-chans.Errors():

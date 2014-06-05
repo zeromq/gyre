@@ -1,7 +1,7 @@
-package zre
+package gyre
 
 import (
-	"github.com/armen/go-zre/pkg/msg"
+	"github.com/armen/gyre/msg"
 	zmq "github.com/vaughan0/go-zmq"
 
 	"fmt"

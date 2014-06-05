@@ -108,9 +108,9 @@ func (b *Beacon) Close() {
 	close(b.signals)
 }
 
-// Hostname returns our own IP address as printable string
-func (b *Beacon) Hostname() string {
-	return b.hostname
+// Returns our own IP address as printable string
+func (b *Beacon) Addr() string {
+	return b.addr
 }
 
 // Port returns port number
