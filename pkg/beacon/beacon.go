@@ -37,15 +37,15 @@ type Signal struct {
 }
 
 type Beacon struct {
-	Signals    chan *Signal
+	signals    chan *Signal
 	conn       *net.UDPConn  // UDP connection for send/recv
-	Port       int           // UDP port number we work on
-	Interval   time.Duration // Beacon broadcast interval
+	port       int           // UDP port number we work on
+	interval   time.Duration // Beacon broadcast interval
 	noecho     bool          // Ignore own (unique) beacons
 	terminated bool          // API shut us down
 	transmit   []byte        // Beacon transmit data
 	filter     []byte        // Beacon filter data
-	Addr       string        // Our own address
+	addr       string        // Our own address
 	mcast      *net.UDPAddr  // Our broadcast/multicast address
 	ticker     <-chan time.Time
 }
@@ -88,10 +88,10 @@ func New(port int) (*Beacon, error) {
 	}
 
 	b := &Beacon{
-		Signals:  make(chan *Signal),
-		Interval: defaultInterval,
-		Addr:     ip.String(),
-		Port:     port,
+		signals:  make(chan *Signal),
+		interval: defaultInterval,
+		addr:     ip.String(),
+		port:     port,
 		conn:     conn,
 		mcast:    mcast,
 	}
@@ -105,12 +105,22 @@ func New(port int) (*Beacon, error) {
 // Terminates the beacon.
 func (b *Beacon) Close() {
 	b.terminated = true
-	close(b.Signals)
+	close(b.signals)
+}
+
+// Hostname returns our own IP address as printable string
+func (b *Beacon) Hostname() string {
+	return b.hostname
+}
+
+// Port returns port number
+func (b *Beacon) Port() int {
+	return b.port
 }
 
 // SetInterval sets broadcast interval.
 func (b *Beacon) SetInterval(interval time.Duration) *Beacon {
-	b.Interval = interval
+	b.interval = interval
 	return b
 }
 
@@ -123,10 +133,10 @@ func (b *Beacon) NoEcho() *Beacon {
 // Publish starts broadcasting beacon to peers at the specified interval.
 func (b *Beacon) Publish(transmit []byte) *Beacon {
 	b.transmit = transmit
-	if b.Interval == 0 {
+	if b.interval == 0 {
 		b.ticker = time.After(defaultInterval)
 	} else {
-		b.ticker = time.After(b.Interval)
+		b.ticker = time.After(b.interval)
 	}
 	return b
 }
@@ -149,9 +159,9 @@ func (b *Beacon) Unsubscribe() *Beacon {
 	return b
 }
 
-// Chan returns Signals channel.
-func (b *Beacon) Chan() chan *Signal {
-	return b.Signals
+// Signals returns Signals channel
+func (b *Beacon) Signals() chan *Signal {
+	return b.signals
 }
 
 func (b *Beacon) listen() {
@@ -170,7 +180,7 @@ func (b *Beacon) listen() {
 		if send && !b.terminated {
 			// Send the arrived signal to the Signals channel
 			select {
-			case b.Signals <- &Signal{addr.String(), buff[:n]}:
+			case b.signals <- &Signal{addr.String(), buff[:n]}:
 			default:
 			}
 		}
@@ -188,7 +198,7 @@ func (b *Beacon) signal() {
 				// Signal other beacons
 				b.conn.WriteToUDP(b.transmit, b.mcast)
 			}
-			b.ticker = time.After(b.Interval)
+			b.ticker = time.After(b.interval)
 		}
 	}
 }
