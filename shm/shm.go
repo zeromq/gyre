@@ -1,4 +1,4 @@
-// shm package provides a neat way of storing key-val data.
+// Package shm provides a neat way of storing key-val data.
 // The hash map contains one or multiple sub-trees and each sub-tree contains multiple nodes.
 // Each node has its own properties and keeps its own value. Although sub-tree hash maps
 // is very simple data structure on top of Go maps it's so powerful.

@@ -1,3 +1,8 @@
+// Gyre is Golang port of Zyre, an open-source framework for proximity-based
+// peer-to-peer applications.
+// Gyre does local area discovery and clustering. A Gyre node broadcasts
+// UDP beacons, and connects to peers that it finds. This class wraps a
+// Gyre node with a message-based API.
 package gyre
 
 import (
