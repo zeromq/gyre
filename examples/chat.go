@@ -3,9 +3,11 @@ package main
 import (
 	"github.com/armen/gyre"
 
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 )
 
 var (
@@ -41,15 +43,14 @@ func main() {
 
 	go chat()
 
-	var (
-		err error
-		n   int
-	)
+	fmt.Printf("%s> ", *name)
 
-	for ln := ""; err == nil; n, err = fmt.Scanln(&ln) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		input <- fmt.Sprintf("%s: %s", *name, scanner.Text())
 		fmt.Printf("%s> ", *name)
-		if n > 0 {
-			input <- fmt.Sprintf("%s: %s", *name, ln)
-		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatalln("reading standard input:", err)
 	}
 }
