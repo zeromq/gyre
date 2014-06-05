@@ -52,4 +52,4 @@ Run following command in a terminal:
     cd gyre
     go run examples/chat.go -name yourname
 
-And repeat the run command in another terminal or all the commands in another computer. Happy chatting!
+And repeat the last command in another terminal or all the commands in another computer. Happy chatting!

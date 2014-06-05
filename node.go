@@ -58,8 +58,8 @@ type Node struct {
 	quit chan struct{}  // quit is used to signal handler about quiting
 	wg   sync.WaitGroup // wait group is used to wait until handler() is done
 
-	Events     chan *Event
-	Commands   chan *Event
+	events     chan *Event
+	commands   chan *Event
 	Beacon     *beacon.Beacon
 	Uuid       []byte            // Our UUID
 	Identity   string            // Our UUID as hex string
@@ -67,9 +67,9 @@ type Node struct {
 	Host       string            // Our host IP address
 	Port       uint16            // Our inbox port number
 	Status     byte              // Our own change counter
-	Peers      map[string]*Peer  // Hash of known peers, fast lookup
-	PeerGroups map[string]*Group // Groups that our peers are in
-	OwnGroups  map[string]*Group // Groups that we are in
+	Peers      map[string]*peer  // Hash of known peers, fast lookup
+	PeerGroups map[string]*group // Groups that our peers are in
+	OwnGroups  map[string]*group // Groups that we are in
 	Headers    map[string]string // Our header values
 }
 
@@ -77,11 +77,11 @@ type Node struct {
 func NewNode() (node *Node, err error) {
 	node = &Node{
 		quit:       make(chan struct{}),
-		Events:     make(chan *Event),
-		Commands:   make(chan *Event),
-		Peers:      make(map[string]*Peer),
-		PeerGroups: make(map[string]*Group),
-		OwnGroups:  make(map[string]*Group),
+		events:     make(chan *Event),
+		commands:   make(chan *Event),
+		Peers:      make(map[string]*peer),
+		PeerGroups: make(map[string]*group),
+		OwnGroups:  make(map[string]*group),
 		Headers:    make(map[string]string),
 	}
 	node.wg.Add(1) // We're going to wait until handler() is done
@@ -137,7 +137,7 @@ func NewNode() (node *Node, err error) {
 
 // Sends message to single peer. peer ID is first frame in message.
 func (n *Node) Whisper(identity string, content []byte) *Node {
-	n.Commands <- &Event{
+	n.commands <- &Event{
 		Type:    EventWhisper,
 		Peer:    identity,
 		Content: content,
@@ -147,7 +147,7 @@ func (n *Node) Whisper(identity string, content []byte) *Node {
 
 // Sends message to a group of peers.
 func (n *Node) Shout(group string, content []byte) *Node {
-	n.Commands <- &Event{
+	n.commands <- &Event{
 		Type:    EventShout,
 		Group:   group,
 		Content: content,
@@ -157,7 +157,7 @@ func (n *Node) Shout(group string, content []byte) *Node {
 
 // Joins a group.
 func (n *Node) Join(group string) *Node {
-	n.Commands <- &Event{
+	n.commands <- &Event{
 		Type:  EventJoin,
 		Group: group,
 	}
@@ -165,7 +165,7 @@ func (n *Node) Join(group string) *Node {
 }
 
 func (n *Node) Leave(group string) *Node {
-	n.Commands <- &Event{
+	n.commands <- &Event{
 		Type:  EventLeave,
 		Group: group,
 	}
@@ -173,7 +173,7 @@ func (n *Node) Leave(group string) *Node {
 }
 
 func (n *Node) Set(key, value string) *Node {
-	n.Commands <- &Event{
+	n.commands <- &Event{
 		Type:    EventSet,
 		Key:     key,
 		Content: []byte(value),
@@ -195,7 +195,7 @@ func (n *Node) whisper(identity string, content []byte) {
 	if ok {
 		m := msg.NewWhisper()
 		m.Content = content
-		peer.Send(m)
+		peer.send(m)
 	}
 }
 
@@ -205,7 +205,7 @@ func (n *Node) shout(group string, content []byte) {
 		m := msg.NewShout()
 		m.Group = group
 		m.Content = content
-		g.Send(m)
+		g.send(m)
 	}
 }
 
@@ -213,7 +213,7 @@ func (n *Node) join(group string) {
 	if _, ok := n.OwnGroups[group]; !ok {
 
 		// Only send if we're not already in group
-		n.OwnGroups[group] = NewGroup(group)
+		n.OwnGroups[group] = newGroup(group)
 		m := msg.NewJoin()
 		m.Group = group
 
@@ -223,7 +223,7 @@ func (n *Node) join(group string) {
 
 		for _, peer := range n.Peers {
 			cloned := msg.Clone(m)
-			peer.Send(cloned)
+			peer.send(cloned)
 		}
 	}
 }
@@ -240,7 +240,7 @@ func (n *Node) leave(group string) {
 
 		for _, peer := range n.Peers {
 			cloned := msg.Clone(m)
-			peer.Send(cloned)
+			peer.send(cloned)
 		}
 		delete(n.OwnGroups, group)
 	}
@@ -250,9 +250,9 @@ func (n *Node) set(key string, value []byte) {
 	n.Headers[key] = string(value)
 }
 
-// Chan returns Events channel
+// Chan returns events channel
 func (n *Node) Chan() chan *Event {
-	return n.Events
+	return n.events
 }
 
 func (n *Node) handle() {
@@ -271,7 +271,7 @@ func (n *Node) handle() {
 		case <-n.quit:
 			return
 
-		case e := <-n.Commands:
+		case e := <-n.commands:
 			// Received a command from the caller/API
 			switch e.Type {
 			case EventWhisper:
@@ -311,7 +311,8 @@ func (n *Node) handle() {
 // recvFromPeer handles messages coming from other peers
 func (n *Node) recvFromPeer(transit msg.Transit) {
 	// Router socket tells us the identity of this peer
-	identity := string(transit.Address())
+	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
+	identity := string(transit.Address()[1:])
 
 	peer := n.Peers[identity]
 
@@ -320,16 +321,16 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 		// On HELLO we may create the peer if it's unknown
 		// On other commands the peer must already exist
 		peer = n.requirePeer(identity, m.Ipaddress, m.Mailbox)
-		peer.Ready = true
+		peer.ready = true
 	}
 
 	// Ignore command if peer isn't ready
-	if peer == nil || !peer.Ready {
+	if peer == nil || !peer.ready {
 		log.Printf("W: [%s] peer %s wasn't ready, ignoring a %s message", n.Identity, identity, transit)
 		return
 	}
 
-	if !peer.CheckMessage(transit) {
+	if !peer.checkMessage(transit) {
 		log.Printf("W: [%s] lost messages from %s", n.Identity, identity)
 		return
 	}
@@ -339,7 +340,7 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	case *msg.Hello:
 		// Store peer headers for future reference
 		for key, val := range m.Headers {
-			peer.Headers[key] = val
+			peer.headers[key] = val
 		}
 
 		// Join peer to listed groups
@@ -348,11 +349,11 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 		}
 
 		// Hello command holds latest status of peer
-		peer.Status = m.Status
+		peer.status = m.Status
 
 	case *msg.Whisper:
 		// Pass up to caller API as WHISPER event
-		n.Events <- &Event{
+		n.events <- &Event{
 			Type:    EventWhisper,
 			Peer:    identity,
 			Content: m.Content,
@@ -360,7 +361,7 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 
 	case *msg.Shout:
 		// Pass up to caller as SHOUT event
-		n.Events <- &Event{
+		n.events <- &Event{
 			Type:    EventShout,
 			Peer:    identity,
 			Group:   m.Group,
@@ -369,23 +370,23 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 
 	case *msg.Ping:
 		ping := msg.NewPingOk()
-		peer.Send(ping)
+		peer.send(ping)
 
 	case *msg.Join:
 		n.joinPeerGroup(peer, m.Group)
-		if m.Status != peer.Status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.Status)
+		if m.Status != peer.status {
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.status)
 		}
 
 	case *msg.Leave:
 		n.leavePeerGroup(peer, m.Group)
-		if m.Status != peer.Status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.Status)
+		if m.Status != peer.status {
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.status)
 		}
 	}
 
 	// Activity from peer resets peer timers
-	peer.Refresh()
+	peer.refresh()
 }
 
 // recvFromBeacon handles a new signal received from beacon
@@ -411,24 +412,24 @@ func (n *Node) recvFromBeacon(b *beacon.Signal) {
 		// Check that the peer, identified by its UUID, exists
 		identity := fmt.Sprintf("%X", s.Uuid)
 		peer := n.requirePeer(identity, ipaddress, s.Port)
-		peer.Refresh()
+		peer.refresh()
 	}
 }
 
 // requirePeer finds or creates peer via its UUID string
-func (n *Node) requirePeer(identity, address string, port uint16) (peer *Peer) {
+func (n *Node) requirePeer(identity, address string, port uint16) (peer *peer) {
 	peer, ok := n.Peers[identity]
 	if !ok {
 		// Purge any previous peer on same endpoint
 		endpoint := fmt.Sprintf("%s:%d", address, port)
 		for _, p := range n.Peers {
-			if p.Endpoint == endpoint {
-				p.Disconnect()
+			if p.endpoint == endpoint {
+				p.disconnect()
 			}
 		}
 
-		peer = NewPeer(identity)
-		peer.Connect(n.Identity, endpoint)
+		peer = newPeer(identity)
+		peer.connect(n.Identity, endpoint)
 
 		// Handshake discovery by sending HELLO as first message
 		m := msg.NewHello()
@@ -441,11 +442,11 @@ func (n *Node) requirePeer(identity, address string, port uint16) (peer *Peer) {
 		for key, header := range n.Headers {
 			m.Headers[key] = header
 		}
-		peer.Send(m)
+		peer.send(m)
 		n.Peers[identity] = peer
 
 		// Now tell the caller about the peer
-		n.Events <- &Event{
+		n.events <- &Event{
 			Type: EventEnter,
 			Peer: identity,
 		}
@@ -455,10 +456,10 @@ func (n *Node) requirePeer(identity, address string, port uint16) (peer *Peer) {
 }
 
 // requirePeerGroup finds or creates group via its name
-func (n *Node) requirePeerGroup(name string) (group *Group) {
+func (n *Node) requirePeerGroup(name string) (group *group) {
 	group, ok := n.PeerGroups[name]
 	if !ok {
-		group = NewGroup(name)
+		group = newGroup(name)
 		n.PeerGroups[name] = group
 	}
 
@@ -466,27 +467,27 @@ func (n *Node) requirePeerGroup(name string) (group *Group) {
 }
 
 // joinPeerGroup joins the pear to a group
-func (n *Node) joinPeerGroup(peer *Peer, name string) {
+func (n *Node) joinPeerGroup(peer *peer, name string) {
 	group := n.requirePeerGroup(name)
-	group.Join(peer)
+	group.join(peer)
 
 	// Now tell the caller about the peer joined group
-	n.Events <- &Event{
+	n.events <- &Event{
 		Type:  EventJoin,
-		Peer:  peer.Identity,
+		Peer:  peer.identity,
 		Group: name,
 	}
 }
 
 // leavePeerGroup leaves the pear to a group
-func (n *Node) leavePeerGroup(peer *Peer, name string) {
+func (n *Node) leavePeerGroup(peer *peer, name string) {
 	group := n.requirePeerGroup(name)
-	group.Leave(peer)
+	group.leave(peer)
 
 	// Now tell the caller about the peer left group
-	n.Events <- &Event{
+	n.events <- &Event{
 		Type:  EventLeave,
-		Peer:  peer.Identity,
+		Peer:  peer.identity,
 		Group: name,
 	}
 }
@@ -494,28 +495,28 @@ func (n *Node) leavePeerGroup(peer *Peer, name string) {
 // We do this once a second:
 // - if peer has gone quiet, send TCP ping
 // - if peer has disappeared, expire it
-func (n *Node) pingPeer(peer *Peer) {
-	if time.Now().Unix() >= peer.ExpiredAt.Unix() {
+func (n *Node) pingPeer(peer *peer) {
+	if time.Now().Unix() >= peer.expiredAt.Unix() {
 		// If peer has really vanished, expire it
-		n.Events <- &Event{
+		n.events <- &Event{
 			Type: EventExit,
-			Peer: peer.Identity,
+			Peer: peer.identity,
 		}
 		for _, group := range n.PeerGroups {
-			group.Leave(peer)
+			group.leave(peer)
 		}
 		// It's really important to disconnect from the peer before
 		// deleting it, unless we'd end up difficulties to reconnect
 		// to the same endpoint
-		peer.Disconnect()
-		delete(n.Peers, peer.Identity)
-	} else if time.Now().Unix() >= peer.EvasiveAt.Unix() {
+		peer.disconnect()
+		delete(n.Peers, peer.identity)
+	} else if time.Now().Unix() >= peer.evasiveAt.Unix() {
 		//  If peer is being evasive, force a TCP ping.
 		//  TODO: do this only once for a peer in this state;
 		//  it would be nicer to use a proper state machine
 		//  for peer management.
 		m := msg.NewPing()
-		peer.Send(m)
+		peer.send(m)
 	}
 }
 
@@ -527,7 +528,7 @@ func (n *Node) Disconnect() {
 	// Close sockets on a signal
 	for group := range n.OwnGroups {
 		// Note that n.leave is used not n.Leave because we're already in select
-		// and Leave sends communicate to Events channel which obviously blocks
+		// and Leave sends communicate to events channel which obviously blocks
 		n.leave(group)
 	}
 	// Disconnect from all peers
@@ -535,7 +536,7 @@ func (n *Node) Disconnect() {
 		// It's really important to disconnect from the peer before
 		// deleting it, unless we'd end up difficulties to reconnect
 		// to the same endpoint
-		peer.Disconnect()
+		peer.disconnect()
 		delete(n.Peers, peerId)
 	}
 	// Now it's safe to close the socket

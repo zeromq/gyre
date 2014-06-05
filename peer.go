@@ -14,45 +14,58 @@ var (
 	reapInterval = 1 * time.Second  //  Once per second
 )
 
-type Peer struct {
+type peer struct {
 	mailbox      *zmq.Socket // Socket through to peer
-	Identity     string
-	Endpoint     string            // Endpoint connected to
-	EvasiveAt    time.Time         // Peer is being evasive
-	ExpiredAt    time.Time         // Peer has expired by now
-	Connected    bool              // Peer will send messages
-	Ready        bool              // Peer has said Hello to us
-	Status       byte              // Our status counter
-	SentSequence uint16            // Outgoing message sequence
-	WantSequence uint16            // Incoming message sequence
-	Headers      map[string]string // Peer headers
+	identity     string
+	endpoint     string            // Endpoint connected to
+	name         string            // Peer's public name
+	evasiveAt    time.Time         // Peer is being evasive
+	expiredAt    time.Time         // Peer has expired by now
+	connected    bool              // Peer will send messages
+	ready        bool              // Peer has said Hello to us
+	status       byte              // Our status counter
+	sentSequence uint16            // Outgoing message sequence
+	wantSequence uint16            // Incoming message sequence
+	headers      map[string]string // Peer headers
 }
 
-// NewPeer creates a new peer
-func NewPeer(identity string) (peer *Peer) {
-	peer = &Peer{
-		Identity: identity,
-		Headers:  make(map[string]string),
+// newPeer creates a new peer
+func newPeer(identity string) (p *peer) {
+	p = &peer{
+		identity: identity,
+		headers:  make(map[string]string),
 	}
-	peer.Refresh()
+	p.refresh()
 	return
 }
 
-// Connect configures mailbox and connects to peer's router endpoint
-func (p *Peer) Connect(replyTo, endpoint string) (err error) {
+// destroy disconnects peer mailbox. No more messages will be sent to peer until connected again
+func (p *peer) destroy() {
+	p.disconnect()
+	for k := range p.headers {
+		delete(p.headers, k)
+	}
+}
+
+// connect configures mailbox and connects to peer's router endpoint
+func (p *peer) connect(from, endpoint string) (err error) {
 	// Create new outgoing socket (drop any messages in transit)
 	p.mailbox, err = zmq.NewSocket(zmq.Dealer)
 	if err != nil {
 		return err
 	}
 
-	// Set our caller 'From' identity so that receiving node knows
-	// who each message came from.
-	p.mailbox.SetIdentitiy([]byte(replyTo))
+	// Set our own identity on the socket so that receiving node
+	// knows who each message came from. Note that we cannot use
+	// the UUID directly as the identity since it may contain a
+	// zero byte at the start, which libzmq does not like for
+	// historical and arguably bogus reasons that it nonetheless
+	// enforces.
+	routingId := append([]byte{1}, []byte(from)...)
+	p.mailbox.SetIdentitiy(routingId)
 
 	// Set a high-water mark that allows for reasonable activity
-	// TODO(armen): set SetSendHWM correctly
-	// p.mailbox.SetSendHWM(uint64(peerExpired * 100000))
+	// p.mailbox.SetSendHWM(uint64(peerExpired * time.Microsecond))
 
 	// Send messages immediately or return EAGAIN
 	p.mailbox.SetSendTimeout(0)
@@ -62,53 +75,76 @@ func (p *Peer) Connect(replyTo, endpoint string) (err error) {
 	if err != nil {
 		return err
 	}
-	p.Endpoint = endpoint
-	p.Connected = true
-	p.Ready = false
+	p.endpoint = endpoint
+	p.connected = true
+	p.ready = false
 
 	return nil
 }
 
-// Disconnect disconnects peer mailbox. No more messages will be sent to peer until connected again
-func (p *Peer) Disconnect() {
-	if p.Connected {
-		p.Connected = false
+// disconnects peer mailbox. No more messages will be sent to peer until connected again
+func (p *peer) disconnect() {
+	if p.connected {
 		if p.mailbox != nil {
-			p.mailbox.Disconnect(p.Endpoint)
+			p.mailbox.Disconnect(p.endpoint)
 			p.mailbox.Close()
 			p.mailbox = nil
 		}
-		p.Endpoint = ""
+		p.endpoint = ""
+		p.connected = false
+		p.ready = false
 	}
 }
 
-// Send sends message to peer
-func (p *Peer) Send(t msg.Transit) {
-	if p.Connected {
-		p.SentSequence++
-		t.SetSequence(p.SentSequence)
-		err := t.Send(p.mailbox)
+// send sends message to peer
+func (p *peer) send(t msg.Transit) (err error) {
+	if p.connected {
+		p.sentSequence++
+		t.SetSequence(p.sentSequence)
+		err = t.Send(p.mailbox)
 		if err != nil {
-			p.Disconnect()
+			p.disconnect()
 		}
 	}
+
+	return
 }
 
-// CheckMessage checks peer message sequence
-func (p *Peer) CheckMessage(t msg.Transit) bool {
-	p.WantSequence++
-	valid := p.WantSequence == t.Sequence()
+// refresh refreshes activity at peer
+func (p *peer) refresh() {
+	p.evasiveAt = time.Now().Add(peerEvasive)
+	p.expiredAt = time.Now().Add(peerExpired)
+}
+
+// checkMessage checks peer message sequence
+func (p *peer) checkMessage(t msg.Transit) bool {
+	p.wantSequence++
+	valid := p.wantSequence == t.Sequence()
 	if !valid {
-		p.WantSequence--
+		p.wantSequence--
 	}
 
 	return valid
 }
 
-// Refresh refreshes activity at peer
-func (p *Peer) Refresh() {
-	p.EvasiveAt = time.Now().Add(peerEvasive)
-	p.ExpiredAt = time.Now().Add(peerExpired)
+// setName sets name.
+func (p *peer) setName(name string) {
+	p.name = name
+}
+
+// Returns a header in headers map
+func (p *peer) Header(key string) (value string, ok bool) {
+	value, ok = p.headers[key]
+	return
+}
+
+func (p *peer) Headers() map[string]string {
+	return p.headers
+}
+
+// Returns identity (uuid) of the peer
+func (p *peer) Identity() string {
+	return p.identity
 }
 
 // SetExpired sets expired.

@@ -4,35 +4,35 @@ import (
 	"github.com/armen/gyre/msg"
 )
 
-type Group struct {
-	Name  string           // Group name
-	Peers map[string]*Peer // Peers in group
+type group struct {
+	name  string           // Group name
+	peers map[string]*peer // Peers in group
 }
 
-// NewGroup creates a new group
-func NewGroup(name string) *Group {
-	return &Group{
-		Name:  name,
-		Peers: make(map[string]*Peer),
+// newGroup creates a new group
+func newGroup(name string) *group {
+	return &group{
+		name:  name,
+		peers: make(map[string]*peer),
 	}
 }
 
 // Join adds peer to group. Ignore duplicate joins
-func (g *Group) Join(peer *Peer) {
-	g.Peers[peer.Identity] = peer
-	peer.Status++
+func (g *group) join(peer *peer) {
+	g.peers[peer.identity] = peer
+	peer.status++
 }
 
 // Leave removes peer from group
-func (g *Group) Leave(peer *Peer) {
-	delete(g.Peers, peer.Identity)
-	peer.Status++
+func (g *group) leave(peer *peer) {
+	delete(g.peers, peer.identity)
+	peer.status++
 }
 
 // Send sends message to all peers in group
-func (g *Group) Send(m msg.Transit) {
-	for _, peer := range g.Peers {
+func (g *group) send(m msg.Transit) {
+	for _, peer := range g.peers {
 		cloned := msg.Clone(m)
-		peer.Send(cloned)
+		peer.send(cloned)
 	}
 }
