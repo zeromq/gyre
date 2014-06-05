@@ -12,7 +12,7 @@ import (
 
 var (
 	input = make(chan string)
-	name  = flag.String("name", "Gyreman", "My name")
+	name  = flag.String("name", "Gyreman", "Your name or nick name in the chat session")
 )
 
 func chat() {

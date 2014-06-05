@@ -50,6 +50,6 @@ Run following command in a terminal:
 
     git clone https://github.com/armen/gyre
     cd gyre
-    go run examples/chat.go -name yourname
+    go run examples/chat/chat.go -name yourname
 
 And repeat the last command in another terminal or all the commands in another computer. Happy chatting!
