@@ -529,11 +529,11 @@ func Test$(struct:no)(t *testing.T) {
 .output "$(path)/$(name).go"
 // Package $(Name) is 100% generated. If you edit this file,
 // you will lose your changes at the next build cycle.
-// DO NOT MAKE ANY CHANGES YOU WISH TO KEEP. The correct places
-// for commits are:
+// DO NOT MAKE ANY CHANGES YOU WISH TO KEEP.
 //
-// - The XML model used for this code generation: $(filename)
-// - The code generation script that built this file: $(script)
+// The correct places for commits are:
+//  - The XML model used for this code generation: $(filename)
+//  - The code generation script that built this file: $(script)
 package $(class.name)
 
 import (
