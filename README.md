@@ -1,9 +1,8 @@
-Gyre
+Gyre [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
 ====
 
-This is a Golang port of [Zyre](zyre.org) 1.0, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:20).
-
-# Gyre - an open-source framework for proximity-based peer-to-peer applications
+This is a Golang port of [Zyre](zyre.org) 1.0, an open-source framework for proximity-based
+peer-to-peer applications, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:20).
 
 ## Description
 
@@ -42,7 +41,7 @@ Shout.
 
 ## Api
 
-View the API docs [here](http://godoc.org/github.com/armen/gyre).
+View the API docs [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
 
 ## Example
 
