@@ -82,8 +82,8 @@ type Node struct {
 func NewNode() (node *Node, err error) {
 	node = &Node{
 		quit:       make(chan struct{}),
-		events:     make(chan *Event),
-		commands:   make(chan *Event),
+		events:     make(chan *Event, 10000), // Do not block on sending events
+		commands:   make(chan *Event, 10000), // Do not block on sending commands
 		Peers:      make(map[string]*peer),
 		PeerGroups: make(map[string]*group),
 		OwnGroups:  make(map[string]*group),
@@ -274,6 +274,8 @@ func (n *Node) handle() {
 	for {
 		select {
 		case <-n.quit:
+			// Quiting, do not send beacons anymore
+			n.Beacon.Silence().Close()
 			return
 
 		case e := <-n.commands:
