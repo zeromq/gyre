@@ -1,7 +1,7 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"bytes"
 	"encoding/binary"
@@ -10,7 +10,7 @@ import (
 
 // Send a message to a group
 type Shout struct {
-	address  []byte
+	address  string
 	sequence uint16
 	Group    string
 	Content  []byte
@@ -96,34 +96,39 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
+	socType, err := socket.GetType()
+	if err != nil {
+		return err
+	}
+
 	// If we're sending to a ROUTER, we send the address first
-	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(s.address, true)
+	if socType == zmq.ROUTER {
+		_, err = socket.Send(s.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Now send the data frame
-	err = socket.SendPart(frame, true)
+	_, err = socket.SendBytes(frame, zmq.SNDMORE)
 	if err != nil {
 		return err
 	}
 	// Now send any frame fields, in order
-	err = socket.SendPart(s.Content, false)
+	_, err = socket.SendBytes(s.Content, 0)
 
 	return err
 }
 
 // Address returns the address for this message, address should is set
 // whenever talking to a ROUTER.
-func (s *Shout) Address() []byte {
+func (s *Shout) Address() string {
 	return s.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (s *Shout) SetAddress(address []byte) {
+func (s *Shout) SetAddress(address string) {
 	s.address = address
 }
 

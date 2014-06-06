@@ -8,7 +8,7 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"bytes"
 	"encoding/binary"
@@ -38,8 +38,8 @@ type Transit interface {
 	Unmarshal(...[]byte) error
 	String() string
 	Send(*zmq.Socket) error
-	SetAddress([]byte)
-	Address() []byte
+	SetAddress(string)
+	Address() string
 	SetSequence(uint16)
 	Sequence() uint16
 }
@@ -50,11 +50,17 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 	// garbage data we might receive from badly-connected peers
 	for {
 		// Read all frames
-		frames, err := socket.Recv()
+		frames, err := socket.RecvMessageBytes(0)
 		if err != nil {
 			return nil, err
 		}
-		t, err := Unmarshal(socket.GetType(), frames...)
+
+		socType, err := socket.GetType()
+		if err != nil {
+			return nil, err
+		}
+
+		t, err := Unmarshal(socType, frames...)
 		if err != nil {
 			continue
 		}
@@ -63,18 +69,18 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 }
 
 // Unmarshals data from raw frames.
-func Unmarshal(sType zmq.SocketType, frames ...[]byte) (t Transit, err error) {
+func Unmarshal(sType zmq.Type, frames ...[]byte) (t Transit, err error) {
 	var (
 		buffer  *bytes.Buffer
-		address []byte
+		address string
 	)
 
 	// If we're reading from a ROUTER socket, get address
-	if sType == zmq.Router {
+	if sType == zmq.ROUTER {
 		if len(frames) <= 1 {
 			return nil, errors.New("no address frame")
 		}
-		address = frames[0]
+		address = string(frames[0])
 		frames = frames[1:]
 	}
 

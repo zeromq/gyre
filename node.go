@@ -8,7 +8,7 @@ package gyre
 import (
 	"github.com/armen/gyre/beacon"
 	"github.com/armen/gyre/msg"
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"bytes"
 	crand "crypto/rand"
@@ -60,11 +60,12 @@ type Event struct {
 }
 
 type Node struct {
-	quit chan struct{}  // quit is used to signal handler about quiting
+	quit chan struct{}  // quit is used to signal handler() about quiting
 	wg   sync.WaitGroup // wait group is used to wait until handler() is done
 
 	events     chan *Event
 	commands   chan *Event
+	inboxChan  chan [][]byte
 	Beacon     *beacon.Beacon
 	Uuid       []byte            // Our UUID
 	Identity   string            // Our UUID as hex string
@@ -81,9 +82,13 @@ type Node struct {
 // NewNode creates a new node.
 func NewNode() (node *Node, err error) {
 	node = &Node{
-		quit:       make(chan struct{}),
-		events:     make(chan *Event, 10000), // Do not block on sending events
-		commands:   make(chan *Event, 10000), // Do not block on sending commands
+		quit: make(chan struct{}),
+		// Following three channels are used in handler() method which is heart of the Gyre
+		// if something blocks while sending to one of these channels, it'll cause pause in
+		// the system which isn't desired.
+		events:     make(chan *Event, 10000),   // Do not block on sending events
+		commands:   make(chan *Event, 10000),   // Do not block on sending commands
+		inboxChan:  make(chan [][]byte, 10000), // Do not block while reading from inbox channel
 		Peers:      make(map[string]*peer),
 		PeerGroups: make(map[string]*group),
 		OwnGroups:  make(map[string]*group),
@@ -91,7 +96,7 @@ func NewNode() (node *Node, err error) {
 	}
 	node.wg.Add(1) // We're going to wait until handler() is done
 
-	node.inbox, err = zmq.NewSocket(zmq.Router)
+	node.inbox, err = zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +140,8 @@ func NewNode() (node *Node, err error) {
 	node.Beacon.Subscribe([]byte("ZRE"))
 	node.Beacon.Publish(buffer.Bytes())
 
-	go node.handle()
+	go node.inboxHandler()
+	go node.handler()
 
 	return
 }
@@ -260,16 +266,32 @@ func (n *Node) Chan() chan *Event {
 	return n.events
 }
 
-func (n *Node) handle() {
+func (n *Node) inboxHandler() {
+	poller := zmq.NewPoller()
+	poller.Add(n.inbox, zmq.POLLIN)
+
+	for {
+		sockets, _ := poller.Poll(-1)
+		for _, socket := range sockets {
+			switch s := socket.Socket; s {
+			case n.inbox:
+				msg, err := s.RecvMessageBytes(0)
+				if err != nil {
+
+				}
+				n.inboxChan <- msg
+			}
+		}
+	}
+}
+
+func (n *Node) handler() {
 	defer func() {
 		n.wg.Done()
 	}()
 
-	chans := n.inbox.Channels()
-	defer chans.Close()
-
 	ping := time.After(reapInterval)
-	stype := n.inbox.GetType()
+	stype, _ := n.inbox.GetType()
 
 	for {
 		select {
@@ -293,7 +315,7 @@ func (n *Node) handle() {
 				n.set(e.Key, e.Content)
 			}
 
-		case frames := <-chans.In():
+		case frames := <-n.inboxChan:
 			transit, err := msg.Unmarshal(stype, frames...)
 			if err != nil {
 				continue
@@ -302,9 +324,6 @@ func (n *Node) handle() {
 
 		case s := <-n.Beacon.Signals():
 			n.recvFromBeacon(s)
-
-		case err := <-chans.Errors():
-			log.Println(err)
 
 		case <-ping:
 			ping = time.After(reapInterval)

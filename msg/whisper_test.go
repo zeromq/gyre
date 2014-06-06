@@ -1,39 +1,42 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"testing"
 )
 
 // Yay! Test function.
 func TestWhisper(t *testing.T) {
-	context, err := zmq.NewContext()
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Output
-	output, err := context.Socket(zmq.Dealer)
+	output, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		t.Fatal(err)
 	}
-	address := []byte("Shout")
-	output.SetIdentitiy(address)
-	err = output.Bind("inproc://selftest")
+	defer output.Close()
+
+	address := "Shout"
+	output.SetIdentity(address)
+	err = output.Bind("inproc://selftest-whisper")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer output.Unbind("inproc://selftest-whisper")
 
 	// Input
-	input, err := context.Socket(zmq.Router)
+	input, err := zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = input.Connect("inproc://selftest")
+	defer input.Close()
+
+	err = input.Connect("inproc://selftest-whisper")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer input.Disconnect("inproc://selftest-whisper")
+
 	// Create a Whisper message and send it through the wire
 	whisper := NewWhisper()
 	whisper.SetSequence(123)
@@ -64,7 +67,7 @@ func TestWhisper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(address) != string(tr.Address()) {
+	if address != tr.Address() {
 		t.Fatalf("expected %v, got %v", address, tr.Address())
 	}
 }

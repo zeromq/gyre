@@ -1,7 +1,7 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"bytes"
 	"encoding/binary"
@@ -10,7 +10,7 @@ import (
 
 // Join a group
 type Join struct {
-	address  []byte
+	address  string
 	sequence uint16
 	Group    string
 	Status   byte
@@ -100,16 +100,21 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
+	socType, err := socket.GetType()
+	if err != nil {
+		return err
+	}
+
 	// If we're sending to a ROUTER, we send the address first
-	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(j.address, true)
+	if socType == zmq.ROUTER {
+		_, err = socket.Send(j.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Now send the data frame
-	err = socket.SendPart(frame, false)
+	_, err = socket.SendBytes(frame, 0)
 	if err != nil {
 		return err
 	}
@@ -119,13 +124,13 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 
 // Address returns the address for this message, address should is set
 // whenever talking to a ROUTER.
-func (j *Join) Address() []byte {
+func (j *Join) Address() string {
 	return j.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (j *Join) SetAddress(address []byte) {
+func (j *Join) SetAddress(address string) {
 	j.address = address
 }
 

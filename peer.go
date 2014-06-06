@@ -2,7 +2,7 @@ package gyre
 
 import (
 	"github.com/armen/gyre/msg"
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"fmt"
 	"time"
@@ -50,7 +50,7 @@ func (p *peer) destroy() {
 // connect configures mailbox and connects to peer's router endpoint
 func (p *peer) connect(from, endpoint string) (err error) {
 	// Create new outgoing socket (drop any messages in transit)
-	p.mailbox, err = zmq.NewSocket(zmq.Dealer)
+	p.mailbox, err = zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		return err
 	}
@@ -62,13 +62,13 @@ func (p *peer) connect(from, endpoint string) (err error) {
 	// historical and arguably bogus reasons that it nonetheless
 	// enforces.
 	routingId := append([]byte{1}, []byte(from)...)
-	p.mailbox.SetIdentitiy(routingId)
+	p.mailbox.SetIdentity(string(routingId))
 
 	// Set a high-water mark that allows for reasonable activity
 	// p.mailbox.SetSendHWM(uint64(peerExpired * time.Microsecond))
 
 	// Send messages immediately or return EAGAIN
-	p.mailbox.SetSendTimeout(0)
+	p.mailbox.SetSndtimeo(0)
 
 	// Connect through to peer node
 	err = p.mailbox.Connect(fmt.Sprintf("tcp://%s", endpoint))

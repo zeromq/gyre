@@ -1,7 +1,7 @@
 package msg
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 
 	"bytes"
 	"encoding/binary"
@@ -10,7 +10,7 @@ import (
 
 // Send a message to a peer
 type Whisper struct {
-	address  []byte
+	address  string
 	sequence uint16
 	Content  []byte
 }
@@ -85,34 +85,39 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
+	socType, err := socket.GetType()
+	if err != nil {
+		return err
+	}
+
 	// If we're sending to a ROUTER, we send the address first
-	if socket.GetType() == zmq.Router {
-		err = socket.SendPart(w.address, true)
+	if socType == zmq.ROUTER {
+		_, err = socket.Send(w.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Now send the data frame
-	err = socket.SendPart(frame, true)
+	_, err = socket.SendBytes(frame, zmq.SNDMORE)
 	if err != nil {
 		return err
 	}
 	// Now send any frame fields, in order
-	err = socket.SendPart(w.Content, false)
+	_, err = socket.SendBytes(w.Content, 0)
 
 	return err
 }
 
 // Address returns the address for this message, address should is set
 // whenever talking to a ROUTER.
-func (w *Whisper) Address() []byte {
+func (w *Whisper) Address() string {
 	return w.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) SetAddress(address []byte) {
+func (w *Whisper) SetAddress(address string) {
 	w.address = address
 }
 
