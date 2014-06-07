@@ -66,17 +66,17 @@ type Node struct {
 	events     chan *Event
 	commands   chan *Event
 	inboxChan  chan [][]byte
-	Beacon     *beacon.Beacon
-	Uuid       []byte            // Our UUID
-	Identity   string            // Our UUID as hex string
+	beacon     *beacon.Beacon
+	uuid       []byte            // Our UUID
+	identity   string            // Our UUID as hex string
 	inbox      *zmq.Socket       // Our inbox socket (ROUTER)
-	Host       string            // Our host IP address
-	Port       uint16            // Our inbox port number
-	Status     byte              // Our own change counter
-	Peers      map[string]*peer  // Hash of known peers, fast lookup
-	PeerGroups map[string]*group // Groups that our peers are in
-	OwnGroups  map[string]*group // Groups that we are in
-	Headers    map[string]string // Our header values
+	host       string            // Our host IP address
+	port       uint16            // Our inbox port number
+	status     byte              // Our own change counter
+	peers      map[string]*peer  // Hash of known peers, fast lookup
+	peerGroups map[string]*group // Groups that our peers are in
+	ownGroups  map[string]*group // Groups that we are in
+	headers    map[string]string // Our header values
 }
 
 // NewNode creates a new node.
@@ -89,10 +89,10 @@ func NewNode() (node *Node, err error) {
 		events:     make(chan *Event, 10000),   // Do not block on sending events
 		commands:   make(chan *Event, 10000),   // Do not block on sending commands
 		inboxChan:  make(chan [][]byte, 10000), // Do not block while reading from inbox channel
-		Peers:      make(map[string]*peer),
-		PeerGroups: make(map[string]*group),
-		OwnGroups:  make(map[string]*group),
-		Headers:    make(map[string]string),
+		peers:      make(map[string]*peer),
+		peerGroups: make(map[string]*group),
+		ownGroups:  make(map[string]*group),
+		headers:    make(map[string]string),
 	}
 	node.wg.Add(1) // We're going to wait until handler() is done
 
@@ -106,23 +106,23 @@ func NewNode() (node *Node, err error) {
 		port := uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
 		err = node.inbox.Bind(fmt.Sprintf("tcp://*:%d", port))
 		if err == nil {
-			node.Port = port
+			node.port = port
 			break
 		}
 	}
 
 	// Generate random uuid
-	node.Uuid = make([]byte, 16)
-	io.ReadFull(crand.Reader, node.Uuid)
-	node.Identity = fmt.Sprintf("%X", node.Uuid)
+	node.uuid = make([]byte, 16)
+	io.ReadFull(crand.Reader, node.uuid)
+	node.identity = fmt.Sprintf("%X", node.uuid)
 
 	s := &sig{}
 	s.Protocol[0] = 'Z'
 	s.Protocol[1] = 'R'
 	s.Protocol[2] = 'E'
 	s.Version = beaconVersion
-	s.Uuid = node.Uuid
-	s.Port = node.Port
+	s.Uuid = node.uuid
+	s.Port = node.port
 
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, s.Protocol)
@@ -131,14 +131,14 @@ func NewNode() (node *Node, err error) {
 	binary.Write(buffer, binary.BigEndian, s.Port)
 
 	// Create a beacon
-	node.Beacon, err = beacon.New(zreDiscoveryPort)
+	node.beacon, err = beacon.New(zreDiscoveryPort)
 	if err != nil {
 		return nil, err
 	}
-	node.Host = node.Beacon.Addr()
-	node.Beacon.NoEcho()
-	node.Beacon.Subscribe([]byte("ZRE"))
-	node.Beacon.Publish(buffer.Bytes())
+	node.host = node.beacon.Addr()
+	node.beacon.NoEcho()
+	node.beacon.Subscribe([]byte("ZRE"))
+	node.beacon.Publish(buffer.Bytes())
 
 	go node.inboxHandler()
 	go node.handler()
@@ -192,14 +192,16 @@ func (n *Node) Set(key, value string) *Node {
 	return n
 }
 
-func (n *Node) Get(key string) (header string) {
-	return n.Headers[key]
+// Returns specified header value
+func (n *Node) Header(key string) (header string, ok bool) {
+	header, ok = n.headers[key]
+	return
 }
 
 func (n *Node) whisper(identity string, content []byte) {
 
 	// Get peer to send message to
-	peer, ok := n.Peers[identity]
+	peer, ok := n.peers[identity]
 
 	// Send frame on out to peer's mailbox, drop message
 	// if peer doesn't exist (may have been destroyed)
@@ -212,7 +214,7 @@ func (n *Node) whisper(identity string, content []byte) {
 
 func (n *Node) shout(group string, content []byte) {
 	// Get group to send message to
-	if g, ok := n.PeerGroups[group]; ok {
+	if g, ok := n.peerGroups[group]; ok {
 		m := msg.NewShout()
 		m.Group = group
 		m.Content = content
@@ -221,18 +223,18 @@ func (n *Node) shout(group string, content []byte) {
 }
 
 func (n *Node) join(group string) {
-	if _, ok := n.OwnGroups[group]; !ok {
+	if _, ok := n.ownGroups[group]; !ok {
 
 		// Only send if we're not already in group
-		n.OwnGroups[group] = newGroup(group)
+		n.ownGroups[group] = newGroup(group)
 		m := msg.NewJoin()
 		m.Group = group
 
 		// Update status before sending command
-		n.Status++
-		m.Status = n.Status
+		n.status++
+		m.Status = n.status
 
-		for _, peer := range n.Peers {
+		for _, peer := range n.peers {
 			cloned := msg.Clone(m)
 			peer.send(cloned)
 		}
@@ -240,25 +242,25 @@ func (n *Node) join(group string) {
 }
 
 func (n *Node) leave(group string) {
-	if _, ok := n.OwnGroups[group]; ok {
+	if _, ok := n.ownGroups[group]; ok {
 		// Only send if we are actually in group
 		m := msg.NewLeave()
 		m.Group = group
 
 		// Update status before sending command
-		n.Status++
-		m.Status = n.Status
+		n.status++
+		m.Status = n.status
 
-		for _, peer := range n.Peers {
+		for _, peer := range n.peers {
 			cloned := msg.Clone(m)
 			peer.send(cloned)
 		}
-		delete(n.OwnGroups, group)
+		delete(n.ownGroups, group)
 	}
 }
 
 func (n *Node) set(key string, value []byte) {
-	n.Headers[key] = string(value)
+	n.headers[key] = string(value)
 }
 
 // Chan returns events channel
@@ -297,7 +299,7 @@ func (n *Node) handler() {
 		select {
 		case <-n.quit:
 			// Quiting, do not send beacons anymore
-			n.Beacon.Silence().Close()
+			n.beacon.Silence().Close()
 			return
 
 		case e := <-n.commands:
@@ -322,12 +324,12 @@ func (n *Node) handler() {
 			}
 			n.recvFromPeer(transit)
 
-		case s := <-n.Beacon.Signals():
+		case s := <-n.beacon.Signals():
 			n.recvFromBeacon(s)
 
 		case <-ping:
 			ping = time.After(reapInterval)
-			for _, peer := range n.Peers {
+			for _, peer := range n.peers {
 				n.pingPeer(peer)
 			}
 		}
@@ -340,7 +342,7 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
 	identity := string(transit.Address()[1:])
 
-	peer := n.Peers[identity]
+	peer := n.peers[identity]
 
 	switch m := transit.(type) {
 	case *msg.Hello:
@@ -352,12 +354,12 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 
 	// Ignore command if peer isn't ready
 	if peer == nil || !peer.ready {
-		log.Printf("W: [%s] peer %s wasn't ready, ignoring a %s message", n.Identity, identity, transit)
+		log.Printf("W: [%s] peer %s wasn't ready, ignoring a %s message", n.identity, identity, transit)
 		return
 	}
 
 	if !peer.checkMessage(transit) {
-		log.Printf("W: [%s] lost messages from %s", n.Identity, identity)
+		log.Printf("W: [%s] lost messages from %s", n.identity, identity)
 		return
 	}
 
@@ -401,13 +403,13 @@ func (n *Node) recvFromPeer(transit msg.Transit) {
 	case *msg.Join:
 		n.joinPeerGroup(peer, m.Group)
 		if m.Status != peer.status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.status)
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.identity, m.Status, peer.status)
 		}
 
 	case *msg.Leave:
 		n.leavePeerGroup(peer, m.Group)
 		if m.Status != peer.status {
-			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.Identity, m.Status, peer.status)
+			log.Printf("W: [%s] message status isn't equal to peer status, %d != %d", n.identity, m.Status, peer.status)
 		}
 	}
 
@@ -444,32 +446,32 @@ func (n *Node) recvFromBeacon(b *beacon.Signal) {
 
 // requirePeer finds or creates peer via its UUID string
 func (n *Node) requirePeer(identity, address string, port uint16) (peer *peer) {
-	peer, ok := n.Peers[identity]
+	peer, ok := n.peers[identity]
 	if !ok {
 		// Purge any previous peer on same endpoint
 		endpoint := fmt.Sprintf("%s:%d", address, port)
-		for _, p := range n.Peers {
+		for _, p := range n.peers {
 			if p.endpoint == endpoint {
 				p.disconnect()
 			}
 		}
 
 		peer = newPeer(identity)
-		peer.connect(n.Identity, endpoint)
+		peer.connect(n.identity, endpoint)
 
 		// Handshake discovery by sending HELLO as first message
 		m := msg.NewHello()
-		m.Ipaddress = n.Host
-		m.Mailbox = n.Port
-		m.Status = n.Status
-		for key := range n.OwnGroups {
+		m.Ipaddress = n.host
+		m.Mailbox = n.port
+		m.Status = n.status
+		for key := range n.ownGroups {
 			m.Groups = append(m.Groups, key)
 		}
-		for key, header := range n.Headers {
+		for key, header := range n.headers {
 			m.Headers[key] = header
 		}
 		peer.send(m)
-		n.Peers[identity] = peer
+		n.peers[identity] = peer
 
 		// Now tell the caller about the peer
 		n.events <- &Event{
@@ -483,10 +485,10 @@ func (n *Node) requirePeer(identity, address string, port uint16) (peer *peer) {
 
 // requirePeerGroup finds or creates group via its name
 func (n *Node) requirePeerGroup(name string) (group *group) {
-	group, ok := n.PeerGroups[name]
+	group, ok := n.peerGroups[name]
 	if !ok {
 		group = newGroup(name)
-		n.PeerGroups[name] = group
+		n.peerGroups[name] = group
 	}
 
 	return
@@ -528,14 +530,14 @@ func (n *Node) pingPeer(peer *peer) {
 			Type: EventExit,
 			Peer: peer.identity,
 		}
-		for _, group := range n.PeerGroups {
+		for _, group := range n.peerGroups {
 			group.leave(peer)
 		}
 		// It's really important to disconnect from the peer before
 		// deleting it, unless we'd end up difficulties to reconnect
 		// to the same endpoint
 		peer.disconnect()
-		delete(n.Peers, peer.identity)
+		delete(n.peers, peer.identity)
 	} else if time.Now().Unix() >= peer.evasiveAt.Unix() {
 		//  If peer is being evasive, force a TCP ping.
 		//  TODO: do this only once for a peer in this state;
@@ -552,20 +554,30 @@ func (n *Node) Disconnect() {
 	n.wg.Wait()
 
 	// Close sockets on a signal
-	for group := range n.OwnGroups {
+	for group := range n.ownGroups {
 		// Note that n.leave is used not n.Leave because we're already in select
 		// and Leave sends communicate to events channel which obviously blocks
 		n.leave(group)
 	}
 	// Disconnect from all peers
-	for peerId, peer := range n.Peers {
+	for peerId, peer := range n.peers {
 		// It's really important to disconnect from the peer before
 		// deleting it, unless we'd end up difficulties to reconnect
 		// to the same endpoint
 		peer.disconnect()
-		delete(n.Peers, peerId)
+		delete(n.peers, peerId)
 	}
 	// Now it's safe to close the socket
-	n.inbox.Unbind(fmt.Sprintf("tcp://*:%d", n.Port))
+	n.inbox.Unbind(fmt.Sprintf("tcp://*:%d", n.port))
 	n.inbox.Close()
+}
+
+// Identity returns string representation of UUID
+func (n *Node) Identity() string {
+	return n.identity
+}
+
+// Uuid returns UUID of the node
+func (n *Node) Uuid() []byte {
+	return n.uuid
 }
