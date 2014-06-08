@@ -11,7 +11,7 @@ Examples:
 
 Options:
 
-Usage of bridge:
+Usage of chat:
 
   -name="Gyreman": Your name or nick name in the chat session
 */

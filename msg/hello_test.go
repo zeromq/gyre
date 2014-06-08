@@ -40,10 +40,10 @@ func TestHello(t *testing.T) {
 	// Create a Hello message and send it through the wire
 	hello := NewHello()
 	hello.SetSequence(123)
-	hello.Ipaddress = "Life is short but Now lasts for ever"
-	hello.Mailbox = 123
+	hello.Endpoint = "Life is short but Now lasts for ever"
 	hello.Groups = []string{"Name: Brutus", "Age: 43"}
 	hello.Status = 123
+	hello.Name = "Life is short but Now lasts for ever"
 	hello.Headers = map[string]string{"Name": "Brutus", "Age": "43"}
 
 	err = hello.Send(output)
@@ -59,11 +59,8 @@ func TestHello(t *testing.T) {
 	if tr.Sequence() != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
 	}
-	if tr.Ipaddress != "Life is short but Now lasts for ever" {
-		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Ipaddress)
-	}
-	if tr.Mailbox != 123 {
-		t.Fatalf("expected %d, got %d", 123, tr.Mailbox)
+	if tr.Endpoint != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Endpoint)
 	}
 	for idx, str := range []string{"Name: Brutus", "Age: 43"} {
 		if tr.Groups[idx] != str {
@@ -72,6 +69,9 @@ func TestHello(t *testing.T) {
 	}
 	if tr.Status != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.Status)
+	}
+	if tr.Name != "Life is short but Now lasts for ever" {
+		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Name)
 	}
 	for key, val := range map[string]string{"Name": "Brutus", "Age": "43"} {
 		if tr.Headers[key] != val {

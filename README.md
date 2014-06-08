@@ -1,8 +1,8 @@
 Gyre [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
 ====
 
-This is a Golang port of [Zyre](zyre.org) 1.0, an open-source framework for proximity-based
-peer-to-peer applications, implementing the same [ZRE protocol](http://rfc.zeromq.org/spec:20).
+This is a Golang port of [Zyre](zyre.org) 2.0, an open-source framework for proximity-based
+peer-to-peer applications, implementing the same [ZeroMQ Realtime Exchange Protocol](http://rfc.zeromq.org/spec:36).
 
 ## Description
 
@@ -27,8 +27,8 @@ frames provide further values:
     SHOUT fromnode groupname message
         a peer has sent one of our groups a message
 
-In SHOUT and WHISPER the message is a single frame in this version
-. In ENTER, the headers frame contains a packed dictionary.
+In SHOUT and WHISPER the message is a single frame in this version.
+In ENTER, the headers frame contains a packed dictionary.
 
 To join or leave a group, use the Join and Leave methods.
 To set a header value, use the SetHeader method. To send a message

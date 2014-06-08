@@ -10,13 +10,13 @@ import (
 
 // Greet a peer so it can connect back to us
 type Hello struct {
-	address   string
-	sequence  uint16
-	Ipaddress string
-	Mailbox   uint16
-	Groups    []string
-	Status    byte
-	Headers   map[string]string
+	address  string
+	sequence uint16
+	Endpoint string
+	Groups   []string
+	Status   byte
+	Name     string
+	Headers  map[string]string
 }
 
 // New creates new Hello message.
@@ -39,12 +39,9 @@ func (h *Hello) Marshal() ([]byte, error) {
 	// Sequence is a 2-byte integer
 	bufferSize += 2
 
-	// Ipaddress is a string with 1-byte length
+	// Endpoint is a string with 1-byte length
 	bufferSize++ // Size is one byte
-	bufferSize += len(h.Ipaddress)
-
-	// Mailbox is a 2-byte integer
-	bufferSize += 2
+	bufferSize += len(h.Endpoint)
 
 	// Groups is an array of strings
 	bufferSize++ // Size is one byte
@@ -56,10 +53,15 @@ func (h *Hello) Marshal() ([]byte, error) {
 	// Status is a 1-byte integer
 	bufferSize += 1
 
-	// Headers is an array of key=value strings
+	// Name is a string with 1-byte length
 	bufferSize++ // Size is one byte
-	for _, val := range h.Headers {
-		bufferSize += 1 + len(val)
+	bufferSize += len(h.Name)
+
+	// Headers is a hash table
+	bufferSize += 4 // Size is 4 bytes
+	for key, val := range h.Headers {
+		bufferSize += 1 + len(key)
+		bufferSize += 4 + len(val)
 	}
 
 	// Now serialize the message
@@ -72,11 +74,8 @@ func (h *Hello) Marshal() ([]byte, error) {
 	// Sequence
 	binary.Write(buffer, binary.BigEndian, h.Sequence())
 
-	// Ipaddress
-	putString(buffer, h.Ipaddress)
-
-	// Mailbox
-	binary.Write(buffer, binary.BigEndian, h.Mailbox)
+	// Endpoint
+	putString(buffer, h.Endpoint)
 
 	// Groups
 	binary.Write(buffer, binary.BigEndian, byte(len(h.Groups)))
@@ -87,10 +86,14 @@ func (h *Hello) Marshal() ([]byte, error) {
 	// Status
 	binary.Write(buffer, binary.BigEndian, h.Status)
 
+	// Name
+	putString(buffer, h.Name)
+
 	// Headers
-	binary.Write(buffer, binary.BigEndian, byte(len(h.Headers)))
+	binary.Write(buffer, binary.BigEndian, uint32(len(h.Headers)))
 	for key, val := range h.Headers {
-		putKeyValString(buffer, key, val)
+		putString(buffer, key)
+		putLongString(buffer, val)
 	}
 
 	return buffer.Bytes(), nil
@@ -119,11 +122,8 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	// Sequence
 	binary.Read(buffer, binary.BigEndian, &h.sequence)
 
-	// Ipaddress
-	h.Ipaddress = getString(buffer)
-
-	// Mailbox
-	binary.Read(buffer, binary.BigEndian, &h.Mailbox)
+	// Endpoint
+	h.Endpoint = getString(buffer)
 
 	// Groups
 	var groupsSize byte
@@ -135,11 +135,15 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	// Status
 	binary.Read(buffer, binary.BigEndian, &h.Status)
 
+	// Name
+	h.Name = getString(buffer)
+
 	// Headers
-	var headersSize byte
+	var headersSize uint32
 	binary.Read(buffer, binary.BigEndian, &headersSize)
 	for ; headersSize != 0; headersSize-- {
-		key, val := getKeyValString(buffer)
+		key := getString(buffer)
+		val := getLongString(buffer)
 		h.Headers[key] = val
 	}
 

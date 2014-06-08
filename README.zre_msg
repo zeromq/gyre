@@ -7,3 +7,8 @@ Then compile it:
 	cd gsl/src
 	make
 	sudo make install
+
+To generate zre_msg:
+
+	cd gyre/
+	make zre-msg

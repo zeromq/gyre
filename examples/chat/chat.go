@@ -16,20 +16,20 @@ var (
 )
 
 func chat() {
-	node, err := gyre.NewNode()
+	node, err := gyre.New()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer node.Disconnect()
-
+	//defer node.Disconnect()
+	node.Start()
 	node.Join("CHAT")
 
 	for {
 		select {
-		case e := <-node.Chan():
-			switch e.Type {
+		case e := <-node.Events():
+			switch e.Type() {
 			case gyre.EventShout:
-				fmt.Printf("\r%s\n%s> ", string(e.Content), *name)
+				fmt.Printf("\r%s\n%s> ", string(e.Msg()), *name)
 			}
 		case msg := <-input:
 			node.Shout("CHAT", []byte(msg))

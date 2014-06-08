@@ -33,6 +33,7 @@ type peer struct {
 func newPeer(identity string) (p *peer) {
 	p = &peer{
 		identity: identity,
+		name:     fmt.Sprintf("%.6s", identity),
 		headers:  make(map[string]string),
 	}
 	p.refresh()
@@ -65,13 +66,13 @@ func (p *peer) connect(from, endpoint string) (err error) {
 	p.mailbox.SetIdentity(string(routingId))
 
 	// Set a high-water mark that allows for reasonable activity
-	// p.mailbox.SetSendHWM(uint64(peerExpired * time.Microsecond))
+	p.mailbox.SetSndhwm(int(peerExpired * time.Microsecond))
 
 	// Send messages immediately or return EAGAIN
 	p.mailbox.SetSndtimeo(0)
 
 	// Connect through to peer node
-	err = p.mailbox.Connect(fmt.Sprintf("tcp://%s", endpoint))
+	err = p.mailbox.Connect(endpoint)
 	if err != nil {
 		return err
 	}

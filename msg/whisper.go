@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-// Send a message to a peer
+// Send a multi-part message to a peer
 type Whisper struct {
 	address  string
 	sequence uint16

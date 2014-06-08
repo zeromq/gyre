@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -179,8 +180,10 @@ func (b *Beacon) listen() {
 
 		if send && !b.terminated {
 			// Send the arrived signal to the Signals channel
+			parts := strings.SplitN(addr.String(), ":", 2)
+			ipaddress := parts[0]
 			select {
-			case b.signals <- &Signal{addr.String(), buff[:n]}:
+			case b.signals <- &Signal{ipaddress, buff[:n]}:
 			default:
 			}
 		}

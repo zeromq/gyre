@@ -52,12 +52,12 @@
 .        field.gotype = "[]string"
 .    elsif type = "dictionary"
 .        field.gotype = "map[string]string"
-.    elsif type = "string"
+.    elsif type = "string" | type = "longstr"
 .        field.gotype = "string"
-.    elsif type = "frame"
+.    elsif type = "frame" | type = "msg"
 .        field.gotype = "[]byte"
 .    else
-.        echo "E: unknown type'$(type)'"
+.        echo "E: unknown type '$(type)'"
 .    endif
 .    if max_length < string.length(field.name)
 .        max_length = string.length(field.name)
@@ -138,6 +138,15 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	bufferSize++ // Size is one byte
 	bufferSize += len($(self).$(fname:no))
 .        endif
+.    elsif type = "longstr"
+
+	// $(name:no) is a string with 4-byte length
+.        if defined (field.value)
+	bufferSize += 4 + len("$(field.value:)")
+.        else
+	bufferSize += 4 // Size is 4 bytes
+	bufferSize += len($(self).$(fname:no))
+.        endif
 .    elsif type = "strings"
 
 	// $(name:no) is an array of strings
@@ -148,10 +157,11 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 	}
 .    elsif type = "dictionary"
 
-	// $(name:no) is an array of key=value strings
-	bufferSize++ // Size is one byte
-	for _, val := range $(self).$(fname:no) {
-		bufferSize += 1 + len(val)
+	// $(name:no) is a hash table
+	bufferSize += 4 // Size is 4 bytes
+	for key, val := range $(self).$(fname:no) {
+		bufferSize += 1 + len(key)
+		bufferSize += 4 + len(val)
 	}
 .    endif
 .endfor
@@ -188,6 +198,14 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 .        else
 	putString(buffer, $(self).$(fname:no))
 .        endif
+.    elsif type = "longstr"
+
+	// $(name:no)
+.        if defined (field.value)
+	putLongString(buffer, "$(field.value:)")
+.        else
+	putLongString(buffer, $(self).$(fname:no))
+.        endif
 .    elsif type = "strings"
 
 	// $(name:no)
@@ -198,9 +216,10 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 .    elsif type = "dictionary"
 
 	// $(name:no)
-	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(fname:no))))
+	binary.Write(buffer, binary.BigEndian, uint32(len($(self).$(fname:no))))
 	for key, val := range $(self).$(fname:no) {
-		putKeyValString(buffer, key, val)
+		putString(buffer, key)
+		putLongString(buffer, val)
 	}
 .    endif
 .endfor
@@ -252,6 +271,13 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 		return errors.New("malformed $(struct:no) message")
 	}
 .        endif
+.    elsif type = "longstr"
+	$(self).$(fname:no) = getLongString(buffer)
+.        if defined (field.value)
+	if $(self).$(fname:no) != "$(field.value:)" {
+		return errors.New("malformed $(struct:no) message")
+	}
+.        endif
 .    elsif type = "strings"
 .        _size = "$(fname)Size"
 	var $(_size:no) byte
@@ -261,13 +287,14 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 	}
 .    elsif type = "dictionary"
 .        _size = "$(fname)Size"
-	var $(_size:no) byte
+	var $(_size:no) uint32
 	binary.Read(buffer, binary.BigEndian, &$(_size:no))
 	for ; $(_size:no) != 0; $(_size:no)-- {
-		key, val := getKeyValString(buffer)
+		key := getString(buffer)
+		val := getLongString(buffer)
 		$(self).$(fname:no)[key] = val
 	}
-.    elsif type = "frame"
+.    elsif type = "frame" | type = "msg"
 	if $(frames) <= len(frames)-1 {
 		$(self).$(fname:no) = frames[$(frames)]
 	}
@@ -300,7 +327,7 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 	}
 
 	// Now send the data frame
-.if !count (field, type = "frame")
+.if !count (field, type = "frame") & !count (field, type = "msg")
 	_, err = socket.SendBytes(frame, 0)
 .else
 	_, err = socket.SendBytes(frame, zmq.SNDMORE)
@@ -308,10 +335,10 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 	if err != nil {
 		return err
 	}
-.if count (field, type = "frame")
+.if count (field, type = "frame") | count (field, type = "msg")
 	// Now send any frame fields, in order
 .endif
-.for field where type = "frame"
+.for field where type = "frame" | type = "msg"
 .    fname = defined(header) ?? "$(name)" ? "$(name:no)"
 .    if last ()
 	_, err = socket.SendBytes($(self).$(fname:no), 0)
@@ -405,13 +432,13 @@ func Test$(struct:no)(t *testing.T) {
 .               else
 	$(struct).Set$(name:no)([]byte{'z', 'y'})
 .               endif
-.           elsif type = "string"
+.           elsif type = "string" | type = "longstr"
 	$(struct).Set$(name:no)("Life is short but Now lasts for ever")
 .           elsif type = "strings"
 	$(struct).Set$(name:no)([]string{"Name: Brutus", "Age: 43"})
 .           elsif type = "dictionary"
 	$(struct).Set$(name:no)(map[string]string{"Name": "Brutus", "Age": "43"})
-.           elsif type = "frame"
+.           elsif type = "frame" | type = "msg"
 	$(struct).Set$(name:no)([]byte("Captcha Diem"))
 .           endif
 .       else
@@ -424,13 +451,13 @@ func Test$(struct:no)(t *testing.T) {
 .               else
 	$(struct).$(name:no) = []byte{'z', 'y'}
 .               endif
-.           elsif type = "string"
+.           elsif type = "string" | type = "longstr"
 	$(struct).$(name:no) = "Life is short but Now lasts for ever"
 .           elsif type = "strings"
 	$(struct).$(name:no) = []string{"Name: Brutus", "Age: 43"}
 .           elsif type = "dictionary"
 	$(struct).$(name:no) = map[string]string{"Name": "Brutus", "Age": "43"}
-.           elsif type = "frame"
+.           elsif type = "frame" | type = "msg"
 	$(struct).$(name:no) = []byte("Captcha Diem")
 .           endif
 .       endif
@@ -484,7 +511,7 @@ func Test$(struct:no)(t *testing.T) {
 		}
 	}
 .           endif
-.       elsif type = "string"
+.       elsif type = "string" | type = "longstr"
 	if tr.$(fname:no) != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.$(fname:no))
 	}
@@ -500,7 +527,7 @@ func Test$(struct:no)(t *testing.T) {
 			t.Fatalf("expected %s, got %s", val, tr.$(fname:no)[key])
 		}
 	}
-.       elsif type = "frame"
+.       elsif type = "frame" | type = "msg"
 .           if defined(socket)
 	if string(tr.$(fname:no)) != "Captcha Diem" {
 		t.Fatalf("expected %s, got %s", "Captcha Diem", tr.$(fname:no))
@@ -552,8 +579,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"strings"
 )
 
 .max_length = 16 # 16 is number of characters of Signature and its type
@@ -695,7 +720,7 @@ func Clone(t Transit) Transit {
 		for idx, str := range msg.$(fname:no) {
 			cloned.$(fname:no)[idx] = str
 		}
-.       elsif type = "octets" | type = "frame"
+.       elsif type = "octets" | type = "frame" | type = "msg"
 		cloned.$(fname:no) = append(cloned.$(fname:no), msg.$(fname:no)...)
 .       else
 		cloned.$(fname:no) = msg.$(fname:no)
@@ -718,16 +743,8 @@ func putString(buffer *bytes.Buffer, str string) {
 	if size > StringMax {
 		size = StringMax
 	}
-	sz := fmt.Sprintf("%d", size)
-	str = fmt.Sprintf("%"+sz+"s", str)
 	binary.Write(buffer, binary.BigEndian, byte(size))
-	binary.Write(buffer, binary.BigEndian, []byte(str))
-}
-
-// putKeyValString marshals a key=val pair into the buffer.
-func putKeyValString(buffer *bytes.Buffer, key, val string) {
-	str := fmt.Sprintf("%s=%s", key, val)
-	putString(buffer, str)
+	binary.Write(buffer, binary.BigEndian, []byte(str[0:size]))
 }
 
 // getString unmarshals a string from the buffer.
@@ -739,16 +756,20 @@ func getString(buffer *bytes.Buffer) string {
 	return string(str)
 }
 
-// getKeyValString unmarshals a key=val pair from the buffer.
-func getKeyValString(buffer *bytes.Buffer) (key, val string) {
-	str := getString(buffer)
-	strs := strings.SplitN(str, "=", 2)
+// putLongString marshals a string into the buffer.
+func putLongString(buffer *bytes.Buffer, str string) {
+	size := len(str)
+	binary.Write(buffer, binary.BigEndian, uint32(size))
+	binary.Write(buffer, binary.BigEndian, []byte(str[0:size]))
+}
 
-	if len(strs) == 2 {
-		return strs[0], strs[1]
-	}
-
-	return
+// getLongString unmarshals a string from the buffer.
+func getLongString(buffer *bytes.Buffer) string {
+	var size uint32
+	binary.Read(buffer, binary.BigEndian, &size)
+	str := make([]byte, size)
+	binary.Read(buffer, binary.BigEndian, &str)
+	return string(str)
 }
 
 // putBytes marshals []byte into the buffer.

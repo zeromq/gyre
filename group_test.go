@@ -19,7 +19,7 @@ func TestGroup(t *testing.T) {
 	}
 	mailbox.Bind("tcp://127.0.0.1:5552")
 
-	group := newGroup("tests")
+	group := newGroup("tlests")
 
 	uuid := make([]byte, 16)
 	io.ReadFull(crand.Reader, uuid)
@@ -32,7 +32,7 @@ func TestGroup(t *testing.T) {
 	if peer.connected {
 		t.Fatal("Peer shouldn't be connected yet")
 	}
-	err = peer.connect(me, "127.0.0.1:5552")
+	err = peer.connect(me, "tcp://127.0.0.1:5552")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,8 +43,7 @@ func TestGroup(t *testing.T) {
 	group.join(peer)
 
 	m := msg.NewHello()
-	m.Ipaddress = "127.0.0.1"
-	m.Mailbox = 5551
+	m.Endpoint = "tcp://127.0.0.1:5551"
 	group.send(m)
 
 	exp, err := m.Marshal()

@@ -8,7 +8,7 @@ import (
 	"errors"
 )
 
-// Send a message to a group
+// Send a multi-part message to a group
 type Shout struct {
 	address  string
 	sequence uint16

@@ -30,7 +30,7 @@ func TestPeer(t *testing.T) {
 	if peer.connected {
 		t.Fatal("Peer shouldn't be connected yet")
 	}
-	err = peer.connect(me, "127.0.0.1:5551")
+	err = peer.connect(me, "tcp://127.0.0.1:5551")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,8 +39,7 @@ func TestPeer(t *testing.T) {
 	}
 
 	m := msg.NewHello()
-	m.Ipaddress = "127.0.0.1"
-	m.Mailbox = 5551
+	m.Endpoint = "tcp://127.0.0.1:5551"
 	peer.send(m)
 
 	exp, err := m.Marshal()

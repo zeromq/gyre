@@ -4,7 +4,7 @@
 //
 // The correct places for commits are:
 //  - The XML model used for this code generation: zre_msg.xml
-//  - The code generation script that built this file: codec_go.gsl
+//  - The code generation script that built this file: codec_go
 package msg
 
 import (
@@ -13,14 +13,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"strings"
 )
 
 const (
 	Signature uint16 = 0xAAA0 | 1
 	StringMax        = 255
-	Version          = 1
+	Version          = 2
 )
 
 const (
@@ -125,12 +123,12 @@ func Clone(t Transit) Transit {
 	case *Hello:
 		cloned := NewHello()
 		cloned.sequence = msg.sequence
-		cloned.Ipaddress = msg.Ipaddress
-		cloned.Mailbox = msg.Mailbox
+		cloned.Endpoint = msg.Endpoint
 		for idx, str := range msg.Groups {
 			cloned.Groups[idx] = str
 		}
 		cloned.Status = msg.Status
+		cloned.Name = msg.Name
 		for key, val := range msg.Headers {
 			cloned.Headers[key] = val
 		}
@@ -183,16 +181,8 @@ func putString(buffer *bytes.Buffer, str string) {
 	if size > StringMax {
 		size = StringMax
 	}
-	sz := fmt.Sprintf("%d", size)
-	str = fmt.Sprintf("%"+sz+"s", str)
 	binary.Write(buffer, binary.BigEndian, byte(size))
-	binary.Write(buffer, binary.BigEndian, []byte(str))
-}
-
-// putKeyValString marshals a key=val pair into the buffer.
-func putKeyValString(buffer *bytes.Buffer, key, val string) {
-	str := fmt.Sprintf("%s=%s", key, val)
-	putString(buffer, str)
+	binary.Write(buffer, binary.BigEndian, []byte(str[0:size]))
 }
 
 // getString unmarshals a string from the buffer.
@@ -204,16 +194,20 @@ func getString(buffer *bytes.Buffer) string {
 	return string(str)
 }
 
-// getKeyValString unmarshals a key=val pair from the buffer.
-func getKeyValString(buffer *bytes.Buffer) (key, val string) {
-	str := getString(buffer)
-	strs := strings.SplitN(str, "=", 2)
+// putLongString marshals a string into the buffer.
+func putLongString(buffer *bytes.Buffer, str string) {
+	size := len(str)
+	binary.Write(buffer, binary.BigEndian, uint32(size))
+	binary.Write(buffer, binary.BigEndian, []byte(str[0:size]))
+}
 
-	if len(strs) == 2 {
-		return strs[0], strs[1]
-	}
-
-	return
+// getLongString unmarshals a string from the buffer.
+func getLongString(buffer *bytes.Buffer) string {
+	var size uint32
+	binary.Read(buffer, binary.BigEndian, &size)
+	str := make([]byte, size)
+	binary.Read(buffer, binary.BigEndian, &str)
+	return string(str)
 }
 
 // putBytes marshals []byte into the buffer.
