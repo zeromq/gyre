@@ -81,7 +81,7 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 
 	n.inbox, err = zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
-		return nil, err
+		return nil, err // Could not create new socket
 	}
 
 	// Generate random uuid
@@ -371,7 +371,7 @@ func (n *node) requirePeer(identity string, endpoint string) (peer *peer) {
 
 // Remove a peer from our data structures.
 func (n *node) removePeer(peer *peer) {
-	// If peer has really vanished, expire it
+	// Tell the calling application the peer has gone
 	n.events <- &Event{
 		eventType: EventExit,
 		sender:    peer.identity,
@@ -461,7 +461,9 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 
 	// Ignore command if peer isn't ready
 	if peer == nil || !peer.ready {
-		log.Printf("W: [%s] peer %s wasn't ready, ignoring a %s message", n.name, identity, transit)
+		if peer != nil {
+			n.removePeer(peer)
+		}
 		return
 	}
 

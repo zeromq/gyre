@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	peerEvasive  = 5 * time.Second  // Five seconds' silence is evasive
-	peerExpired  = 10 * time.Second // Ten seconds' silence is expired
-	reapInterval = 1 * time.Second  //  Once per second
+	peerEvasive  = 3 * time.Second // 3 seconds' silence is evasive
+	peerExpired  = 5 * time.Second // 5 seconds' silence is expired
+	reapInterval = 1 * time.Second // Once per second
 )
 
 type peer struct {
