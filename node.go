@@ -8,6 +8,7 @@ import (
 	"bytes"
 	crand "crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -242,6 +243,16 @@ func (n *node) recvFromApi(c *cmd) {
 	case cmdName:
 		n.cmds <- &cmd{payload: n.name}
 
+	case cmdHeader:
+		header, ok := n.headers[c.key]
+
+		var err error
+		if !ok {
+			err = errors.New("Header doesn't exist")
+		}
+
+		n.cmds <- &cmd{err: err, payload: header}
+
 	case cmdBind:
 		endpoint := c.payload.(string)
 		err := n.bind(endpoint)
@@ -257,7 +268,7 @@ func (n *node) recvFromApi(c *cmd) {
 	case cmdStart:
 		err := n.start()
 		// Signal the caller and send back the error if any
-		n.cmds <- &cmd{payload: err}
+		n.cmds <- &cmd{err: err}
 
 	case cmdStop, cmdTerm:
 		close(n.terminated)

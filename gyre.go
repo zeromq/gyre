@@ -23,11 +23,13 @@ type cmd struct {
 	cmd     string
 	key     string
 	payload interface{}
+	err     error // Only on the return
 }
 
 const (
 	cmdName        = "NAME"
 	cmdUuid        = "UUID"
+	cmdHeader      = "HEADER"
 	cmdSetName     = "SET NAME"
 	cmdSetHeader   = "SET HEADER"
 	cmdSetVerbose  = "SET VERBOSE"
@@ -93,6 +95,20 @@ func (g *Gyre) Name() (name string) {
 	g.name = out.payload.(string)
 
 	return g.name
+}
+
+// Return specified header
+func (g *Gyre) Header(key string) (header string, ok bool) {
+	g.cmds <- &cmd{cmd: cmdHeader}
+	out := <-g.cmds
+
+	if out.err != nil {
+		return
+	}
+
+	header = out.payload.(string)
+
+	return header, true
 }
 
 // Set node name; this is provided to other nodes during discovery.
@@ -171,8 +187,8 @@ func (g *Gyre) Start() (err error) {
 	}
 	out := <-g.cmds
 
-	if err, ok := out.payload.(error); ok {
-		return err
+	if out.err != nil {
+		return out.err
 	}
 
 	return nil
