@@ -20,7 +20,8 @@ func chat() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	//defer node.Disconnect()
+	defer node.Stop()
+
 	node.Start()
 	node.Join("CHAT")
 
