@@ -44,10 +44,10 @@ func (h *Hello) Marshal() ([]byte, error) {
 	bufferSize += len(h.Endpoint)
 
 	// Groups is an array of strings
-	bufferSize++ // Size is one byte
-	// Add up size of list contents
+	bufferSize += 4 // Size is 4 bytes
+	// Add up size of string contents
 	for _, val := range h.Groups {
-		bufferSize += 1 + len(val)
+		bufferSize += 4 + len(val)
 	}
 
 	// Status is a 1-byte integer
@@ -78,9 +78,9 @@ func (h *Hello) Marshal() ([]byte, error) {
 	putString(buffer, h.Endpoint)
 
 	// Groups
-	binary.Write(buffer, binary.BigEndian, byte(len(h.Groups)))
+	binary.Write(buffer, binary.BigEndian, uint32(len(h.Groups)))
 	for _, val := range h.Groups {
-		putString(buffer, val)
+		putLongString(buffer, val)
 	}
 
 	// Status
@@ -126,10 +126,10 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	h.Endpoint = getString(buffer)
 
 	// Groups
-	var groupsSize byte
+	var groupsSize uint32
 	binary.Read(buffer, binary.BigEndian, &groupsSize)
 	for ; groupsSize != 0; groupsSize-- {
-		h.Groups = append(h.Groups, getString(buffer))
+		h.Groups = append(h.Groups, getLongString(buffer))
 	}
 
 	// Status

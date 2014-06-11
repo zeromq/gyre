@@ -150,10 +150,10 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 .    elsif type = "strings"
 
 	// $(name:no) is an array of strings
-	bufferSize++ // Size is one byte
-	// Add up size of list contents
+	bufferSize += 4 // Size is 4 bytes
+	// Add up size of string contents
 	for _, val := range $(self).$(fname:no) {
-		bufferSize += 1 + len(val)
+		bufferSize += 4 + len(val)
 	}
 .    elsif type = "dictionary"
 
@@ -209,9 +209,9 @@ func ($(self) *$(struct:no)) Marshal() ([]byte, error) {
 .    elsif type = "strings"
 
 	// $(name:no)
-	binary.Write(buffer, binary.BigEndian, byte(len($(self).$(fname:no))))
+	binary.Write(buffer, binary.BigEndian, uint32(len($(self).$(fname:no))))
 	for _, val := range $(self).$(fname:no) {
-		putString(buffer, val)
+		putLongString(buffer, val)
 	}
 .    elsif type = "dictionary"
 
@@ -280,10 +280,10 @@ func ($(self) *$(struct:no)) Unmarshal(frames ...[]byte) error {
 .        endif
 .    elsif type = "strings"
 .        _size = "$(fname)Size"
-	var $(_size:no) byte
+	var $(_size:no) uint32
 	binary.Read(buffer, binary.BigEndian, &$(_size:no))
 	for ; $(_size:no) != 0; $(_size:no)-- {
-		$(self).$(fname:no) = append($(self).$(fname:no), getString(buffer))
+		$(self).$(fname:no) = append($(self).$(fname:no), getLongString(buffer))
 	}
 .    elsif type = "dictionary"
 .        _size = "$(fname)Size"
