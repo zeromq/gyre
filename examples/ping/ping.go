@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	input = make(chan string)
-	group = flag.String("group", "GLOBAL", "The group we are going to join")
+	input   = make(chan string)
+	group   = flag.String("group", "GLOBAL", "The group we are going to join")
+	verbose = flag.Bool("verbose", false, "Set verbose flag")
 )
 
 func ping() {
@@ -24,6 +25,9 @@ func ping() {
 	}
 	defer node.Stop()
 
+	if *verbose {
+		node.SetVerbose()
+	}
 	node.Start()
 	node.Join(*group)
 
