@@ -14,5 +14,6 @@ Options:
 Usage of ping:
 
   -group="GLOBAL": The group we are going to join
+  -verbose=false: Set verbose flag
 */
 package main
