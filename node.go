@@ -220,6 +220,11 @@ func (n *node) stop() {
 
 // recvFromApi handles a new command received from front-end
 func (n *node) recvFromApi(c *cmd) {
+
+	if n.verbose {
+		log.Printf("[%s] Received a %q command from API", n.name, c.cmd)
+	}
+
 	switch c.cmd {
 	case cmdSetName:
 		n.name = c.payload.(string)
@@ -453,6 +458,10 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 
 	peer := n.peers[identity]
 
+	if n.verbose {
+		log.Printf("[%s] Received a %s message from %q peer", n.name, transit.String(), identity)
+	}
+
 	switch m := transit.(type) {
 	case *msg.Hello:
 		// On HELLO we may create the peer if it's unknown
@@ -574,6 +583,10 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 		// Check that the peer, identified by its UUID, exists
 		identity := fmt.Sprintf("%X", b.Uuid)
 
+		if n.verbose {
+			log.Printf("[%s] Received a beacon from %q peer (tcp://%s:%d)", n.name, identity, ipaddress, b.Port)
+		}
+
 		if b.Port != 0 {
 			endpoint := fmt.Sprintf("tcp://%s:%d", ipaddress, b.Port)
 			peer := n.requirePeer(identity, endpoint)
@@ -584,6 +597,8 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 			peer := n.peers[identity]
 			n.removePeer(peer)
 		}
+	} else if n.verbose {
+		log.Printf("[%s] Received a beacon with invalid version number %d", n.name, b.Version)
 	}
 }
 
@@ -663,6 +678,9 @@ func (n *node) handler() {
 			n.recvFromBeacon(s)
 
 		case <-ping:
+			if n.verbose {
+				log.Printf("[%s] Pings every other peer", n.name)
+			}
 			ping = time.After(reapInterval)
 			for _, peer := range n.peers {
 				n.pingPeer(peer)
