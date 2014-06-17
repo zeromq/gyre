@@ -47,7 +47,7 @@ type Beacon struct {
 	transmit   []byte        // Beacon transmit data
 	filter     []byte        // Beacon filter data
 	addr       string        // Our own address
-	mcast      *net.UDPAddr  // Our broadcast/multicast address
+	cast       *net.UDPAddr  // Our broadcast/multicast address
 	ticker     <-chan time.Time
 }
 
@@ -56,24 +56,35 @@ func New(port int) (*Beacon, error) {
 
 	var (
 		ip    net.IP
+		ipnet *net.IPNet
 		found bool
-		mcast *net.UDPAddr
+		cast  *net.UDPAddr
 	)
 
 	ifs, err := net.Interfaces()
 	for _, iface := range ifs {
-		if iface.Flags&net.FlagLoopback == 0 && iface.Flags&net.FlagBroadcast != 0 {
+		if iface.Flags&net.FlagLoopback == 0 && (iface.Flags&net.FlagBroadcast != 0 || iface.Flags&net.FlagMulticast != 0) {
 			addrs, err := iface.Addrs()
 			if err != nil {
 				continue
 			}
 
-			mcasts, err := iface.MulticastAddrs()
-			if err != nil {
-				continue
+			ip, ipnet, _ = net.ParseCIDR(addrs[0].String())
+
+			if iface.Flags&net.FlagMulticast != 0 {
+				casts, err := iface.MulticastAddrs()
+				if err != nil {
+					continue
+				}
+				cast = &net.UDPAddr{Port: port, IP: net.ParseIP(casts[0].String())}
+			} else if iface.Flags&net.FlagBroadcast != 0 {
+				bcast := ipnet.IP
+				for i := 0; i < len(ipnet.Mask); i++ {
+					bcast[i] |= ^ipnet.Mask[i]
+				}
+				cast = &net.UDPAddr{Port: port, IP: bcast}
 			}
-			ip, _, _ = net.ParseCIDR(addrs[0].String())
-			mcast = &net.UDPAddr{Port: port, IP: net.ParseIP(mcasts[0].String())}
+
 			found = true
 			break
 		}
@@ -83,7 +94,7 @@ func New(port int) (*Beacon, error) {
 		return nil, errors.New("no interfaces to bind to")
 	}
 
-	conn, err := net.ListenUDP("udp", mcast)
+	conn, err := net.ListenUDP("udp", cast)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +105,7 @@ func New(port int) (*Beacon, error) {
 		addr:     ip.String(),
 		port:     port,
 		conn:     conn,
-		mcast:    mcast,
+		cast:     cast,
 	}
 
 	go b.listen()
@@ -168,7 +179,7 @@ func (b *Beacon) Signals() chan *Signal {
 func (b *Beacon) listen() {
 	for {
 		buff := make([]byte, beaconMax)
-		n, addr, err := b.conn.ReadFrom(buff)
+		n, addr, err := b.conn.ReadFromUDP(buff)
 		if err != nil || n > beaconMax {
 			continue
 		}
@@ -199,7 +210,7 @@ func (b *Beacon) signal() {
 			}
 			if b.transmit != nil {
 				// Signal other beacons
-				b.conn.WriteToUDP(b.transmit, b.mcast)
+				b.conn.WriteToUDP(b.transmit, b.cast)
 			}
 			b.ticker = time.After(b.interval)
 		}
