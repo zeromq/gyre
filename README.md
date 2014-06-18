@@ -37,18 +37,69 @@ Shout.
 
 ## Installation
 
+### Install essential packages
+
+    sudo apt-get install curl make git libtool build-essential dh-autoreconf pkg-config mercurial
+
+OR
+
+    yum install curl make git libtool autoreconf pkgconfig mercurial file gcc gcc-c++
+
+### Install golang
+
+    curl -o /tmp/go.tar.gz https://go.googlecode.com/files/go1.2.linux-amd64.tar.gz
+    sudo tar -C /usr/local -zxvf /tmp/go.tar.gz
+    rm /tmp/go.tar.gz
+
+OR
+
+    sudo apt-get install golang
+
+OR
+
+    sudo yum install golang
+
+Test the installation - You need at least version 1.2 example wont work with 1.0 and 1.1:
+
+    go version
+    
+### Install zeromq
+
+    curl -o /tmp/zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
+    sudo tar -C /tmp -zxvf /tmp/zeromq.tar.gz
+    rm /tmp/zeromq.tar.gz
+    cd /tmp/zeromq-4.0.4
+    ./autogen.sh && ./configure && make && make install
+    export PKG_CONFIG_PATH=/tmp/zeromq-4.0.4/src/
+    export LD_LIBRARY_PATH=/usr/local/lib/
+    cd -
+
+### Install Gyre
+
+    mkdir ~/gopath
+    export GOROOT=/usr/local/go # Ignore if installed with apt or yum
+    export GOPATH=~/gopath
+    export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
+
     go get github.com/armen/gyre
-
-## Api
-
-View the API docs [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
 
 ## Example
 
 Run following command in a terminal:
+
+    cd $GOPATH/src/github.com/armen/gyre/
+    go run examples/chat/chat.go -name yourname
+
+Or
 
     git clone https://github.com/armen/gyre
     cd gyre
     go run examples/chat/chat.go -name yourname
 
 And repeat the last command in another terminal or all the commands in another computer. Happy chatting!
+
+## Api
+
+View the API docs [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
+
+
