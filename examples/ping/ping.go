@@ -28,7 +28,10 @@ func ping() {
 	if *verbose {
 		node.SetVerbose()
 	}
-	node.Start()
+	err = node.Start()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	node.Join(*group)
 
 	for {

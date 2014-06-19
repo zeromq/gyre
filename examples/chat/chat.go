@@ -22,7 +22,10 @@ func chat() {
 	}
 	defer node.Stop()
 
-	node.Start()
+	err = node.Start()
+	if err != nil {
+		log.Fatalln(err)
+	}
 	node.Join("CHAT")
 
 	for {
