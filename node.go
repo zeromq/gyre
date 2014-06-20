@@ -258,6 +258,9 @@ func (n *node) recvFromApi(c *cmd) {
 
 		n.cmds <- &cmd{err: err, payload: header}
 
+	case cmdHeaders:
+		n.cmds <- &cmd{payload: n.headers}
+
 	case cmdBind:
 		endpoint := c.payload.(string)
 		err := n.bind(endpoint)

@@ -30,6 +30,7 @@ const (
 	cmdName        = "NAME"
 	cmdUuid        = "UUID"
 	cmdHeader      = "HEADER"
+	cmdHeaders     = "HEADERS"
 	cmdSetName     = "SET NAME"
 	cmdSetHeader   = "SET HEADER"
 	cmdSetVerbose  = "SET VERBOSE"
@@ -99,7 +100,7 @@ func (g *Gyre) Name() (name string) {
 
 // Return specified header
 func (g *Gyre) Header(key string) (header string, ok bool) {
-	g.cmds <- &cmd{cmd: cmdHeader}
+	g.cmds <- &cmd{cmd: cmdHeader, key: key}
 	out := <-g.cmds
 
 	if out.err != nil {
@@ -109,6 +110,14 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	header = out.payload.(string)
 
 	return header, true
+}
+
+// Return headers
+func (g *Gyre) Headers() map[string]string {
+	g.cmds <- &cmd{cmd: cmdHeaders}
+	out := <-g.cmds
+
+	return out.payload.(map[string]string)
 }
 
 // Set node name; this is provided to other nodes during discovery.
