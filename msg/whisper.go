@@ -10,7 +10,7 @@ import (
 
 // Send a multi-part message to a peer
 type Whisper struct {
-	address  string
+	address  []byte
 	sequence uint16
 	Content  []byte
 }
@@ -92,7 +92,7 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send(w.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(w.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -109,15 +109,15 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) Address() string {
+func (w *Whisper) Address() []byte {
 	return w.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) SetAddress(address string) {
+func (w *Whisper) SetAddress(address []byte) {
 	w.address = address
 }
 

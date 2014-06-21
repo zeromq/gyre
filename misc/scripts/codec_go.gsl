@@ -87,7 +87,7 @@ import (
 // $(string.trim (.?''):left)
 type $(struct:no) struct {
 .if defined(socket)
-	$("address"%-$(max_length + 1)s)string
+	$("address"%-$(max_length + 1)s)[]byte
 .endif
 .for field
 .    fname = defined(header) ?? "$(name)" ? "$(name:no)"
@@ -320,7 +320,7 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send($(self).address, zmq.SNDMORE)
+		_, err = socket.SendBytes($(self).address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -350,15 +350,15 @@ func ($(self) *$(struct:no)) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func ($(self) *$(struct:no)) Address() string {
+func ($(self) *$(struct:no)) Address() []byte {
 	return $(self).address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func ($(self) *$(struct:no)) SetAddress(address string) {
+func ($(self) *$(struct:no)) SetAddress(address []byte) {
 	$(self).address = address
 }
 .endif
@@ -545,8 +545,8 @@ func Test$(struct:no)(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if address != tr.Address() {
-		t.Fatalf("expected %v, got %v", address, tr.Address())
+	if address != string(tr.Address()) {
+		t.Fatalf("expected %s, got %s", address, string(tr.Address()))
 	}
 .else
 	marshaled, err = $(struct).Marshal()
@@ -616,8 +616,8 @@ type Transit interface {
 	String() string
 .if defined(socket)
 	Send(*zmq.Socket) error
-	SetAddress(string)
-	Address() string
+	SetAddress([]byte)
+	Address() []byte
 .endif
 .for field where defined(header)
 	Set$(name:no)($(gotype))
@@ -660,7 +660,7 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 .if defined(socket)
 	var (
 		buffer  *bytes.Buffer
-		address string
+		address []byte
 	)
 .else
 	var buffer *bytes.Buffer
@@ -672,7 +672,7 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 		if len(frames) <= 1 {
 			return nil, errors.New("no address frame")
 		}
-		address = string(frames[0])
+		address = frames[0]
 		frames = frames[1:]
 	}
 .endif

@@ -457,7 +457,7 @@ func (n *node) leavePeerGroup(peer *peer, name string) *group {
 func (n *node) recvFromPeer(transit msg.Transit) {
 	// Router socket tells us the identity of this peer
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
-	identity := transit.Address()[1:]
+	identity := string(transit.Address()[1:])
 
 	peer := n.peers[identity]
 

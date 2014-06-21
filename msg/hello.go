@@ -10,7 +10,7 @@ import (
 
 // Greet a peer so it can connect back to us
 type Hello struct {
-	address  string
+	address  []byte
 	sequence uint16
 	Endpoint string
 	Groups   []string
@@ -164,7 +164,7 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send(h.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(h.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -179,15 +179,15 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (h *Hello) Address() string {
+func (h *Hello) Address() []byte {
 	return h.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (h *Hello) SetAddress(address string) {
+func (h *Hello) SetAddress(address []byte) {
 	h.address = address
 }
 

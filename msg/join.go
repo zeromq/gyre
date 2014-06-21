@@ -10,7 +10,7 @@ import (
 
 // Join a group
 type Join struct {
-	address  string
+	address  []byte
 	sequence uint16
 	Group    string
 	Status   byte
@@ -107,7 +107,7 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send(j.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(j.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -122,15 +122,15 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (j *Join) Address() string {
+func (j *Join) Address() []byte {
 	return j.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (j *Join) SetAddress(address string) {
+func (j *Join) SetAddress(address []byte) {
 	j.address = address
 }
 

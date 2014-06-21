@@ -67,7 +67,7 @@ func TestWhisper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if address != tr.Address() {
-		t.Fatalf("expected %v, got %v", address, tr.Address())
+	if address != string(tr.Address()) {
+		t.Fatalf("expected %s, got %s", address, string(tr.Address()))
 	}
 }

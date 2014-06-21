@@ -36,8 +36,8 @@ type Transit interface {
 	Unmarshal(...[]byte) error
 	String() string
 	Send(*zmq.Socket) error
-	SetAddress(string)
-	Address() string
+	SetAddress([]byte)
+	Address() []byte
 	SetSequence(uint16)
 	Sequence() uint16
 }
@@ -70,7 +70,7 @@ func Recv(socket *zmq.Socket) (t Transit, err error) {
 func Unmarshal(sType zmq.Type, frames ...[]byte) (t Transit, err error) {
 	var (
 		buffer  *bytes.Buffer
-		address string
+		address []byte
 	)
 
 	// If we're reading from a ROUTER socket, get address
@@ -78,7 +78,7 @@ func Unmarshal(sType zmq.Type, frames ...[]byte) (t Transit, err error) {
 		if len(frames) <= 1 {
 			return nil, errors.New("no address frame")
 		}
-		address = string(frames[0])
+		address = frames[0]
 		frames = frames[1:]
 	}
 

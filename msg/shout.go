@@ -10,7 +10,7 @@ import (
 
 // Send a multi-part message to a group
 type Shout struct {
-	address  string
+	address  []byte
 	sequence uint16
 	Group    string
 	Content  []byte
@@ -103,7 +103,7 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send(s.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(s.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -120,15 +120,15 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (s *Shout) Address() string {
+func (s *Shout) Address() []byte {
 	return s.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (s *Shout) SetAddress(address string) {
+func (s *Shout) SetAddress(address []byte) {
 	s.address = address
 }
 

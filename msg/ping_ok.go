@@ -10,7 +10,7 @@ import (
 
 // Reply to a peer's ping
 type PingOk struct {
-	address  string
+	address  []byte
 	sequence uint16
 }
 
@@ -86,7 +86,7 @@ func (p *PingOk) Send(socket *zmq.Socket) (err error) {
 
 	// If we're sending to a ROUTER, we send the address first
 	if socType == zmq.ROUTER {
-		_, err = socket.Send(p.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(p.address, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -101,15 +101,15 @@ func (p *PingOk) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should is set
+// Address returns the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (p *PingOk) Address() string {
+func (p *PingOk) Address() []byte {
 	return p.address
 }
 
 // SetAddress sets the address for this message, address should be set
 // whenever talking to a ROUTER.
-func (p *PingOk) SetAddress(address string) {
+func (p *PingOk) SetAddress(address []byte) {
 	p.address = address
 }
 
