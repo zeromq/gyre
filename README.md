@@ -43,7 +43,7 @@ Shout.
 
 OR
 
-    yum install curl make git libtool autoreconf pkgconfig mercurial file gcc gcc-c++
+    sudo yum install curl make git libtool autoreconf pkgconfig mercurial file gcc gcc-c++
 
 ### Install golang
 
@@ -69,7 +69,7 @@ Test the installation - You need at least version 1.2 example wont work with 1.0
     sudo tar -C /tmp -zxvf /tmp/zeromq.tar.gz
     rm /tmp/zeromq.tar.gz
     cd /tmp/zeromq-4.0.4
-    ./autogen.sh && ./configure && make && make install
+    ./autogen.sh && ./configure && make && sudo make install
     export PKG_CONFIG_PATH=/tmp/zeromq-4.0.4/src/
     export LD_LIBRARY_PATH=/usr/local/lib/
     cd -
