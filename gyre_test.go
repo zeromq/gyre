@@ -14,7 +14,8 @@ func TestNode(t *testing.T) {
 	}
 	node1.SetName("node1")
 	node1.SetHeader("X-HELLO", "World")
-	node1.SetVerbose()
+	// You might want to make it verbose
+	// node1.SetVerbose()
 	node1.SetPort(5670)
 	err = node1.Start()
 	if err != nil {
@@ -27,7 +28,8 @@ func TestNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	node2.SetName("node2")
-	node2.SetVerbose()
+	// You might want to make it verbose
+	// node2.SetVerbose()
 	node2.SetPort(5670)
 	err = node2.Start()
 	if err != nil {
