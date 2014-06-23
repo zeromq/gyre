@@ -14,6 +14,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -506,6 +507,7 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 			eventType: EventEnter,
 			sender:    peer.identity,
 			name:      peer.name,
+			address:   strings.SplitN(strings.TrimPrefix(m.Endpoint, "tcp://"), ":", 2)[0],
 			headers:   make(map[string]string),
 		}
 
