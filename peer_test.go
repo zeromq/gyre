@@ -6,7 +6,6 @@ import (
 
 	"bytes"
 	crand "crypto/rand"
-	"fmt"
 	"io"
 	"testing"
 )
@@ -19,14 +18,13 @@ func TestPeer(t *testing.T) {
 	}
 	mailbox.Bind("tcp://127.0.0.1:5551")
 
-	uuid := make([]byte, 16)
-	io.ReadFull(crand.Reader, uuid)
-	me := fmt.Sprintf("%X", uuid)
+	me := make([]byte, 16)
+	io.ReadFull(crand.Reader, me)
 
-	io.ReadFull(crand.Reader, uuid)
-	you := fmt.Sprintf("%X", uuid)
+	you := make([]byte, 16)
+	io.ReadFull(crand.Reader, you)
 
-	peer := newPeer(you)
+	peer := newPeer(string(you))
 	if peer.connected {
 		t.Fatal("Peer shouldn't be connected yet")
 	}
