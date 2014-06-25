@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Reply to a peer's ping
@@ -22,7 +23,9 @@ func NewPingOk() *PingOk {
 
 // String returns print friendly name.
 func (p *PingOk) String() string {
-	return "PING_OK"
+	str := "MSG_PING_OK:\n"
+	str += fmt.Sprintf("    sequence = %v\n", p.sequence)
+	return str
 }
 
 // Marshal serializes the message.

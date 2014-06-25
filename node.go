@@ -462,7 +462,11 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 	peer := n.peers[identity]
 
 	if n.verbose {
-		log.Printf("[%s] Received a %s message from %q peer", n.name, transit.String(), identity)
+		for _, str := range strings.Split(transit.String(), "\n") {
+			if len(str) > 0 {
+				log.Printf("[%s] %s", n.name, str)
+			}
+		}
 	}
 
 	switch m := transit.(type) {

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Send a multi-part message to a peer
@@ -23,7 +24,10 @@ func NewWhisper() *Whisper {
 
 // String returns print friendly name.
 func (w *Whisper) String() string {
-	return "WHISPER"
+	str := "MSG_WHISPER:\n"
+	str += fmt.Sprintf("    sequence = %v\n", w.sequence)
+	str += fmt.Sprintf("    Content = %v\n", w.Content)
+	return str
 }
 
 // Marshal serializes the message.

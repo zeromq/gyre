@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Greet a peer so it can connect back to us
@@ -28,7 +29,14 @@ func NewHello() *Hello {
 
 // String returns print friendly name.
 func (h *Hello) String() string {
-	return "HELLO"
+	str := "MSG_HELLO:\n"
+	str += fmt.Sprintf("    sequence = %v\n", h.sequence)
+	str += fmt.Sprintf("    Endpoint = %v\n", h.Endpoint)
+	str += fmt.Sprintf("    Groups = %v\n", h.Groups)
+	str += fmt.Sprintf("    Status = %v\n", h.Status)
+	str += fmt.Sprintf("    Name = %v\n", h.Name)
+	str += fmt.Sprintf("    Headers = %v\n", h.Headers)
+	return str
 }
 
 // Marshal serializes the message.

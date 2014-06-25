@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Send a multi-part message to a group
@@ -24,7 +25,11 @@ func NewShout() *Shout {
 
 // String returns print friendly name.
 func (s *Shout) String() string {
-	return "SHOUT"
+	str := "MSG_SHOUT:\n"
+	str += fmt.Sprintf("    sequence = %v\n", s.sequence)
+	str += fmt.Sprintf("    Group = %v\n", s.Group)
+	str += fmt.Sprintf("    Content = %v\n", s.Content)
+	return str
 }
 
 // Marshal serializes the message.

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Join a group
@@ -24,7 +25,11 @@ func NewJoin() *Join {
 
 // String returns print friendly name.
 func (j *Join) String() string {
-	return "JOIN"
+	str := "MSG_JOIN:\n"
+	str += fmt.Sprintf("    sequence = %v\n", j.sequence)
+	str += fmt.Sprintf("    Group = %v\n", j.Group)
+	str += fmt.Sprintf("    Status = %v\n", j.Status)
+	return str
 }
 
 // Marshal serializes the message.

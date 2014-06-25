@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Ping a peer that has gone silent
@@ -22,7 +23,9 @@ func NewPing() *Ping {
 
 // String returns print friendly name.
 func (p *Ping) String() string {
-	return "PING"
+	str := "MSG_PING:\n"
+	str += fmt.Sprintf("    sequence = %v\n", p.sequence)
+	return str
 }
 
 // Marshal serializes the message.

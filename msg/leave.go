@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // Leave a group
@@ -24,7 +25,11 @@ func NewLeave() *Leave {
 
 // String returns print friendly name.
 func (l *Leave) String() string {
-	return "LEAVE"
+	str := "MSG_LEAVE:\n"
+	str += fmt.Sprintf("    sequence = %v\n", l.sequence)
+	str += fmt.Sprintf("    Group = %v\n", l.Group)
+	str += fmt.Sprintf("    Status = %v\n", l.Status)
+	return str
 }
 
 // Marshal serializes the message.
