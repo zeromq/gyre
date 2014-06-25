@@ -33,7 +33,7 @@ func chat() {
 		case e := <-node.Events():
 			switch e.Type() {
 			case gyre.EventShout:
-				fmt.Printf("\r%s\n%s> ", string(e.Msg()), *name)
+				fmt.Printf("%c[2K\r%s%s> ", 27, string(e.Msg()), *name)
 			}
 		case msg := <-input:
 			node.Shout("CHAT", []byte(msg))
@@ -51,7 +51,7 @@ func main() {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		input <- fmt.Sprintf("%s: %s", *name, scanner.Text())
+		input <- fmt.Sprintf("%s: %s\n", *name, scanner.Text())
 		fmt.Printf("%s> ", *name)
 	}
 	if err := scanner.Err(); err != nil {
