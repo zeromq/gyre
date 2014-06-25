@@ -1,9 +1,9 @@
 package gyre
 
 import (
-	"github.com/armen/gyre/beacon"
-	"github.com/armen/gyre/msg"
 	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/beacon"
+	"github.com/zeromq/gyre/msg"
 
 	"bytes"
 	crand "crypto/rand"

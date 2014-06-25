@@ -1,8 +1,8 @@
 package gyre
 
 import (
-	"github.com/armen/gyre/msg"
 	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/msg"
 
 	"fmt"
 	"time"

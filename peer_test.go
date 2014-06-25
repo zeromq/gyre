@@ -1,8 +1,8 @@
 package gyre
 
 import (
-	"github.com/armen/gyre/msg"
 	zmq "github.com/vaughan0/go-zmq"
+	"github.com/zeromq/gyre/msg"
 
 	"bytes"
 	crand "crypto/rand"

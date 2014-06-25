@@ -1,4 +1,4 @@
-Gyre [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
+Gyre [![GoDoc](https://godoc.org/github.com/zeromq/gyre?status.png)](https://godoc.org/github.com/zeromq/gyre)
 ====
 
 This is a Golang port of [Zyre](zyre.org) 2.0, an open-source framework for proximity-based
@@ -81,18 +81,18 @@ Test the installation - You need at least version 1.2 example wont work with 1.0
     export GOPATH=~/gopath
     export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 
-    go get github.com/armen/gyre
+    go get github.com/zeromq/gyre
 
 ## Example
 
 Run following command in a terminal:
 
-    cd $GOPATH/src/github.com/armen/gyre/
+    cd $GOPATH/src/github.com/zeromq/gyre/
     go run examples/chat/chat.go -name yourname
 
 Or
 
-    git clone https://github.com/armen/gyre
+    git clone https://github.com/zeromq/gyre
     cd gyre
     go run examples/chat/chat.go -name yourname
 
@@ -100,6 +100,12 @@ And repeat the last command in another terminal or all the commands in another c
 
 ## Api
 
-View the API docs [![GoDoc](https://godoc.org/github.com/armen/gyre?status.png)](https://godoc.org/github.com/armen/gyre)
+View the API docs [![GoDoc](https://godoc.org/github.com/zeromq/gyre?status.png)](https://godoc.org/github.com/zeromq/gyre)
 
+## Project Organization
 
+Gyre is owned by all its authors and contributors. This is an open source
+project licensed under the LGPLv3. To contribute to Gyre please read the
+[C4.1 process](http://rfc.zeromq.org/spec:22) that we use.
+
+To report an issue, use the [PYRE issue tracker](https://github.com/zeromq/gyre/issues) at github.com.
