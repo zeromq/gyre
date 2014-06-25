@@ -366,8 +366,7 @@ func (n *node) requirePeer(identity string, endpoint string) (peer *peer) {
 		}
 
 		peer = newPeer(identity)
-		uuid := fmt.Sprintf("%X", n.uuid)
-		peer.connect(uuid, endpoint)
+		peer.connect(n.uuid, endpoint)
 
 		// Handshake discovery by sending HELLO as first message
 		m := msg.NewHello()
@@ -458,7 +457,7 @@ func (n *node) leavePeerGroup(peer *peer, name string) *group {
 func (n *node) recvFromPeer(transit msg.Transit) {
 	// Router socket tells us the identity of this peer
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
-	identity := string(transit.Address()[1:])
+	identity := fmt.Sprintf("%X", transit.Address()[1:])
 
 	peer := n.peers[identity]
 
@@ -588,10 +587,6 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 		// Check that the peer, identified by its UUID, exists
 		identity := fmt.Sprintf("%X", b.Uuid)
 
-		if n.verbose {
-			log.Printf("[%s] Received a beacon from %q peer (tcp://%s:%d)", n.name, identity, ipaddress, b.Port)
-		}
-
 		if b.Port != 0 {
 			endpoint := fmt.Sprintf("tcp://%s:%d", ipaddress, b.Port)
 			peer := n.requirePeer(identity, endpoint)
@@ -683,8 +678,8 @@ func (n *node) handler() {
 			n.recvFromBeacon(s)
 
 		case <-ping:
-			if n.verbose {
-				log.Printf("[%s] Pings every other peer", n.name)
+			if n.verbose && len(n.peers) == 0 {
+				log.Printf("[%s] There is no peer to ping", n.name)
 			}
 			ping = time.After(reapInterval)
 			for _, peer := range n.peers {

@@ -49,7 +49,7 @@ func (p *peer) destroy() {
 }
 
 // connect configures mailbox and connects to peer's router endpoint
-func (p *peer) connect(from, endpoint string) (err error) {
+func (p *peer) connect(from []byte, endpoint string) (err error) {
 	// Create new outgoing socket (drop any messages in transit)
 	p.mailbox, err = zmq.NewSocket(zmq.DEALER)
 	if err != nil {
@@ -62,7 +62,7 @@ func (p *peer) connect(from, endpoint string) (err error) {
 	// zero byte at the start, which libzmq does not like for
 	// historical and arguably bogus reasons that it nonetheless
 	// enforces.
-	routingId := append([]byte{1}, []byte(from)...)
+	routingId := append([]byte{1}, from...)
 	p.mailbox.SetIdentity(string(routingId))
 
 	// Set a high-water mark that allows for reasonable activity
