@@ -108,4 +108,4 @@ Gyre is owned by all its authors and contributors. This is an open source
 project licensed under the LGPLv3. To contribute to Gyre please read the
 [C4.1 process](http://rfc.zeromq.org/spec:22) that we use.
 
-To report an issue, use the [PYRE issue tracker](https://github.com/zeromq/gyre/issues) at github.com.
+To report an issue, use the [Gyre issue tracker](https://github.com/zeromq/gyre/issues) at github.com.
