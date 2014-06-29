@@ -52,7 +52,7 @@ const (
 // node it is silent and invisible to other nodes on the network.
 func New() (g *Gyre, err error) {
 	g = &Gyre{
-		// Following three channels are used in nodeActor() method which is heart of the Gyre
+		// The following channels are used in nodeActor() method which is heart of the Gyre
 		// if something blocks while sending to one of these channels, it'll cause pause in
 		// the system which isn't desired.
 		events: make(chan *Event, 10000), // Do not block on sending events
