@@ -1,7 +1,7 @@
 package gyre
 
 import (
-	zmq "github.com/vaughan0/go-zmq"
+	zmq "github.com/pebbe/zmq4"
 	"github.com/zeromq/gyre/msg"
 
 	"bytes"
@@ -12,7 +12,7 @@ import (
 
 func TestGroup(t *testing.T) {
 
-	mailbox, err := zmq.NewSocket(zmq.Dealer)
+	mailbox, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,12 +50,13 @@ func TestGroup(t *testing.T) {
 	}
 	exp[4] = 1 // Sequence now is 1
 
-	got, err := mailbox.Recv()
+	got, err := mailbox.Recv(0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	gotb := []byte(got)
 
-	if !bytes.Equal(got[0], exp) {
+	if !bytes.Equal(gotb, exp) {
 		t.Errorf("Hello message is corrupted")
 	}
 

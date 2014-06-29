@@ -421,7 +421,7 @@ func (n *node) requirePeerGroup(name string) *group {
 	return group
 }
 
-// joinPeerGroup joins the pear to a group
+// joinPeerGroup joins the peer to a group
 func (n *node) joinPeerGroup(peer *peer, name string) *group {
 	group := n.requirePeerGroup(name)
 	group.join(peer)
@@ -437,7 +437,7 @@ func (n *node) joinPeerGroup(peer *peer, name string) *group {
 	return group
 }
 
-// leavePeerGroup leaves the pear to a group
+// leavePeerGroup leaves the peer to a group
 func (n *node) leavePeerGroup(peer *peer, name string) *group {
 	group := n.requirePeerGroup(name)
 	group.leave(peer)
