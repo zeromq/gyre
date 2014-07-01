@@ -7,14 +7,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Send a multi-part message to a group
 type Shout struct {
-	address  []byte
-	sequence uint16
-	Group    string
-	Content  []byte
+	routingId []byte
+	version   byte
+	sequence  uint16
+	Group     string
+	Content   []byte
 }
 
 // New creates new Shout message.
@@ -25,7 +27,8 @@ func NewShout() *Shout {
 
 // String returns print friendly name.
 func (s *Shout) String() string {
-	str := "MSG_SHOUT:\n"
+	str := "ZRE_MSG_SHOUT:\n"
+	str += fmt.Sprintf("    version = %v\n", s.version)
 	str += fmt.Sprintf("    sequence = %v\n", s.sequence)
 	str += fmt.Sprintf("    Group = %v\n", s.Group)
 	str += fmt.Sprintf("    Content = %v\n", s.Content)
@@ -37,7 +40,10 @@ func (s *Shout) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
 
-	// Sequence is a 2-byte integer
+	// version is a 1-byte integer
+	bufferSize += 1
+
+	// sequence is a 2-byte integer
 	bufferSize += 2
 
 	// Group is a string with 1-byte length
@@ -45,14 +51,18 @@ func (s *Shout) Marshal() ([]byte, error) {
 	bufferSize += len(s.Group)
 
 	// Now serialize the message
-	b := make([]byte, bufferSize)
-	b = b[:0]
-	buffer := bytes.NewBuffer(b)
+	tmpBuf := make([]byte, bufferSize)
+	tmpBuf = tmpBuf[:0]
+	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
 	binary.Write(buffer, binary.BigEndian, ShoutId)
 
-	// Sequence
-	binary.Write(buffer, binary.BigEndian, s.Sequence())
+	// version
+	value, _ := strconv.ParseUint("2", 10, 1*8)
+	binary.Write(buffer, binary.BigEndian, byte(value))
+
+	// sequence
+	binary.Write(buffer, binary.BigEndian, s.sequence)
 
 	// Group
 	putString(buffer, s.Group)
@@ -62,25 +72,36 @@ func (s *Shout) Marshal() ([]byte, error) {
 
 // Unmarshals the message.
 func (s *Shout) Unmarshal(frames ...[]byte) error {
+	if frames == nil {
+		return errors.New("Can't unmarshal empty message")
+	}
+
 	frame := frames[0]
 	frames = frames[1:]
 
 	buffer := bytes.NewBuffer(frame)
 
-	// Check the signature
+	// Get and check protocol signature
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		return errors.New("invalid signature")
 	}
 
+	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != ShoutId {
 		return errors.New("malformed Shout message")
 	}
 
-	// Sequence
+	// version
+	binary.Read(buffer, binary.BigEndian, &s.version)
+	if s.version != 2 {
+		return errors.New("malformed version message")
+	}
+
+	// sequence
 	binary.Read(buffer, binary.BigEndian, &s.sequence)
 
 	// Group
@@ -106,9 +127,9 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the address first
+	// If we're sending to a ROUTER, we send the routingId first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(s.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(s.routingId, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -125,24 +146,34 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should be set
+// RoutingId returns the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (s *Shout) Address() []byte {
-	return s.address
+func (s *Shout) RoutingId() []byte {
+	return s.routingId
 }
 
-// SetAddress sets the address for this message, address should be set
+// SetRoutingId sets the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (s *Shout) SetAddress(address []byte) {
-	s.address = address
+func (s *Shout) SetRoutingId(routingId []byte) {
+	s.routingId = routingId
 }
 
-// SetSequence sets the sequence.
+// Setversion sets the version.
+func (s *Shout) SetVersion(version byte) {
+	s.version = version
+}
+
+// version returns the version.
+func (s *Shout) Version() byte {
+	return s.version
+}
+
+// Setsequence sets the sequence.
 func (s *Shout) SetSequence(sequence uint16) {
 	s.sequence = sequence
 }
 
-// Sequence returns the sequence.
+// sequence returns the sequence.
 func (s *Shout) Sequence() uint16 {
 	return s.sequence
 }

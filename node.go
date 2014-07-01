@@ -3,7 +3,7 @@ package gyre
 import (
 	zmq "github.com/pebbe/zmq4"
 	"github.com/zeromq/gyre/beacon"
-	"github.com/zeromq/gyre/msg"
+	"github.com/zeromq/gyre/zre/msg"
 
 	"bytes"
 	crand "crypto/rand"
@@ -27,7 +27,7 @@ type node struct {
 	verbose    bool                // Log all traffic
 	beaconPort int                 // Beacon port number
 	interval   time.Duration       // Beacon interval
-	inboxChan  chan [][]byte       // Channel of inbox messages
+	inboxChan  chan msg.Transit    // Channel of inbox messages
 	beacon     *beacon.Beacon      // Beacon object
 	beacons    chan *beacon.Signal // Beacons
 	uuid       []byte              // Our UUID
@@ -73,7 +73,7 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 	n = &node{
 		events:     events,
 		cmds:       cmds,
-		inboxChan:  make(chan [][]byte), // Shouldn't be a buffered channel because the main select acts as a lock
+		inboxChan:  make(chan msg.Transit), // Shouldn't be a buffered channel because the main select acts as a lock
 		beaconPort: zreDiscoveryPort,
 		peers:      make(map[string]*peer),
 		peerGroups: make(map[string]*group),
@@ -457,7 +457,7 @@ func (n *node) leavePeerGroup(peer *peer, name string) *group {
 func (n *node) recvFromPeer(transit msg.Transit) {
 	// Router socket tells us the identity of this peer
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
-	identity := fmt.Sprintf("%X", transit.Address()[1:])
+	identity := fmt.Sprintf("%X", transit.RoutingId()[1:])
 
 	peer := n.peers[identity]
 
@@ -657,7 +657,6 @@ func (n *node) handler() {
 	}()
 
 	ping := time.After(reapInterval)
-	stype, _ := n.inbox.GetType()
 
 	for {
 		select {
@@ -671,11 +670,7 @@ func (n *node) handler() {
 			// Received a command from the caller/API
 			n.recvFromApi(c)
 
-		case frames := <-n.inboxChan:
-			transit, err := msg.Unmarshal(stype, frames...)
-			if err != nil {
-				continue
-			}
+		case transit := <-n.inboxChan:
 			n.recvFromPeer(transit)
 
 		case s := <-n.beacons:
@@ -714,11 +709,11 @@ func (n *node) pollInbox() {
 		for _, socket := range sockets {
 			switch s := socket.Socket; s {
 			case n.inbox:
-				msg, err := s.RecvMessageBytes(0)
+				t, err := msg.Recv(s)
 				if err != nil {
 
 				}
-				n.inboxChan <- msg
+				n.inboxChan <- t
 			}
 		}
 		if terminated {

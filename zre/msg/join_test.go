@@ -9,22 +9,24 @@ import (
 // Yay! Test function.
 func TestJoin(t *testing.T) {
 
-	// Output
+	// Create pair of sockets we can send through
+
+	// Output socket
 	output, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Close()
 
-	address := "Shout"
-	output.SetIdentity(address)
+	routingId := "Shout"
+	output.SetIdentity(routingId)
 	err = output.Bind("inproc://selftest-join")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Unbind("inproc://selftest-join")
 
-	// Input
+	// Input socket
 	input, err := zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +41,7 @@ func TestJoin(t *testing.T) {
 
 	// Create a Join message and send it through the wire
 	join := NewJoin()
-	join.SetSequence(123)
+	join.sequence = 123
 	join.Group = "Life is short but Now lasts for ever"
 	join.Status = 123
 
@@ -53,8 +55,8 @@ func TestJoin(t *testing.T) {
 	}
 
 	tr := transit.(*Join)
-	if tr.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
+	if tr.sequence != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
 	if tr.Group != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
@@ -71,7 +73,7 @@ func TestJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if address != string(tr.Address()) {
-		t.Fatalf("expected %s, got %s", address, string(tr.Address()))
+	if routingId != string(tr.RoutingId()) {
+		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}
 }

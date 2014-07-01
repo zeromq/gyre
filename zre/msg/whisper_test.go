@@ -9,22 +9,24 @@ import (
 // Yay! Test function.
 func TestWhisper(t *testing.T) {
 
-	// Output
+	// Create pair of sockets we can send through
+
+	// Output socket
 	output, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Close()
 
-	address := "Shout"
-	output.SetIdentity(address)
+	routingId := "Shout"
+	output.SetIdentity(routingId)
 	err = output.Bind("inproc://selftest-whisper")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Unbind("inproc://selftest-whisper")
 
-	// Input
+	// Input socket
 	input, err := zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +41,7 @@ func TestWhisper(t *testing.T) {
 
 	// Create a Whisper message and send it through the wire
 	whisper := NewWhisper()
-	whisper.SetSequence(123)
+	whisper.sequence = 123
 	whisper.Content = []byte("Captcha Diem")
 
 	err = whisper.Send(output)
@@ -52,8 +54,8 @@ func TestWhisper(t *testing.T) {
 	}
 
 	tr := transit.(*Whisper)
-	if tr.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
+	if tr.sequence != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
 	if string(tr.Content) != "Captcha Diem" {
 		t.Fatalf("expected %s, got %s", "Captcha Diem", tr.Content)
@@ -67,7 +69,7 @@ func TestWhisper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if address != string(tr.Address()) {
-		t.Fatalf("expected %s, got %s", address, string(tr.Address()))
+	if routingId != string(tr.RoutingId()) {
+		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}
 }

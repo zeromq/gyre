@@ -1,10 +1,10 @@
-// Package Msg is 100% generated. If you edit this file,
+// Package msg is 100% generated. If you edit this file,
 // you will lose your changes at the next build cycle.
 // DO NOT MAKE ANY CHANGES YOU WISH TO KEEP.
 //
 // The correct places for commits are:
 //  - The XML model used for this code generation: zre_msg.xml
-//  - The code generation script that built this file: codec_go
+//  - The code generation script that built this file: zproto_codec_go
 package msg
 
 import (
@@ -16,9 +16,7 @@ import (
 )
 
 const (
-	Signature uint16 = 0xAAA0 | 1
-	StringMax        = 255
-	Version          = 2
+	Signature uint16 = 0xAAA0 | 0
 )
 
 const (
@@ -36,51 +34,20 @@ type Transit interface {
 	Unmarshal(...[]byte) error
 	String() string
 	Send(*zmq.Socket) error
-	SetAddress([]byte)
-	Address() []byte
+	SetRoutingId([]byte)
+	RoutingId() []byte
+	SetVersion(byte)
+	Version() byte
 	SetSequence(uint16)
 	Sequence() uint16
 }
 
-// Receives marshaled data from 0mq socket.
-func Recv(socket *zmq.Socket) (t Transit, err error) {
-	// Read valid message frame from socket; we loop over any
-	// garbage data we might receive from badly-connected peers
-	for {
-		// Read all frames
-		frames, err := socket.RecvMessageBytes(0)
-		if err != nil {
-			return nil, err
-		}
-
-		socType, err := socket.GetType()
-		if err != nil {
-			return nil, err
-		}
-
-		t, err := Unmarshal(socType, frames...)
-		if err != nil {
-			continue
-		}
-		return t, err
-	}
-}
-
 // Unmarshals data from raw frames.
-func Unmarshal(sType zmq.Type, frames ...[]byte) (t Transit, err error) {
-	var (
-		buffer  *bytes.Buffer
-		address []byte
-	)
-
-	// If we're reading from a ROUTER socket, get address
-	if sType == zmq.ROUTER {
-		if len(frames) <= 1 {
-			return nil, errors.New("no address frame")
-		}
-		address = frames[0]
-		frames = frames[1:]
+func Unmarshal(frames ...[]byte) (t Transit, err error) {
+	if frames == nil {
+		return nil, errors.New("can't unmarshal an empty message")
 	}
+	var buffer *bytes.Buffer
 
 	// Check the signature
 	var signature uint16
@@ -111,17 +78,65 @@ func Unmarshal(sType zmq.Type, frames ...[]byte) (t Transit, err error) {
 	case PingOkId:
 		t = NewPingOk()
 	}
-	t.SetAddress(address)
 	err = t.Unmarshal(frames...)
 
 	return t, err
 }
 
+// Receives marshaled data from 0mq socket.
+func Recv(socket *zmq.Socket) (t Transit, err error) {
+	return recv(socket, 0)
+}
+
+// Receives marshaled data from 0mq socket. It won't wait for input.
+func RecvNoWait(socket *zmq.Socket) (t Transit, err error) {
+	return recv(socket, zmq.DONTWAIT)
+}
+
+// Receives marshaled data from 0mq socket.
+func recv(socket *zmq.Socket, flag zmq.Flag) (t Transit, err error) {
+	// Read all frames
+	frames, err := socket.RecvMessageBytes(flag)
+	if err != nil {
+		return nil, err
+	}
+
+	sType, err := socket.GetType()
+	if err != nil {
+		return nil, err
+	}
+
+	var routingId []byte
+	// If message came from a router socket, first frame is routingId
+	if sType == zmq.ROUTER {
+		if len(frames) <= 1 {
+			return nil, errors.New("no routingId")
+		}
+		routingId = frames[0]
+		frames = frames[1:]
+	}
+
+	t, err = Unmarshal(frames...)
+	if err != nil {
+		return nil, err
+	}
+
+	if sType == zmq.ROUTER {
+		t.SetRoutingId(routingId)
+	}
+	return t, err
+}
+
 // Clones a message.
 func Clone(t Transit) Transit {
+
 	switch msg := t.(type) {
 	case *Hello:
 		cloned := NewHello()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Endpoint = msg.Endpoint
 		for idx, str := range msg.Groups {
@@ -136,12 +151,20 @@ func Clone(t Transit) Transit {
 
 	case *Whisper:
 		cloned := NewWhisper()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Content = append(cloned.Content, msg.Content...)
 		return cloned
 
 	case *Shout:
 		cloned := NewShout()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Content = append(cloned.Content, msg.Content...)
@@ -149,6 +172,10 @@ func Clone(t Transit) Transit {
 
 	case *Join:
 		cloned := NewJoin()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Status = msg.Status
@@ -156,6 +183,10 @@ func Clone(t Transit) Transit {
 
 	case *Leave:
 		cloned := NewLeave()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
 		cloned.Status = msg.Status
@@ -163,11 +194,19 @@ func Clone(t Transit) Transit {
 
 	case *Ping:
 		cloned := NewPing()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		return cloned
 
 	case *PingOk:
 		cloned := NewPingOk()
+		routingId := make([]byte, len(msg.RoutingId()))
+		copy(routingId, msg.RoutingId())
+		cloned.SetRoutingId(routingId)
+		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		return cloned
 	}
@@ -178,9 +217,6 @@ func Clone(t Transit) Transit {
 // putString marshals a string into the buffer.
 func putString(buffer *bytes.Buffer, str string) {
 	size := len(str)
-	if size > StringMax {
-		size = StringMax
-	}
 	binary.Write(buffer, binary.BigEndian, byte(size))
 	binary.Write(buffer, binary.BigEndian, []byte(str[0:size]))
 }

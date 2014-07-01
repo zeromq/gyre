@@ -7,14 +7,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Join a group
 type Join struct {
-	address  []byte
-	sequence uint16
-	Group    string
-	Status   byte
+	routingId []byte
+	version   byte
+	sequence  uint16
+	Group     string
+	Status    byte
 }
 
 // New creates new Join message.
@@ -25,7 +27,8 @@ func NewJoin() *Join {
 
 // String returns print friendly name.
 func (j *Join) String() string {
-	str := "MSG_JOIN:\n"
+	str := "ZRE_MSG_JOIN:\n"
+	str += fmt.Sprintf("    version = %v\n", j.version)
 	str += fmt.Sprintf("    sequence = %v\n", j.sequence)
 	str += fmt.Sprintf("    Group = %v\n", j.Group)
 	str += fmt.Sprintf("    Status = %v\n", j.Status)
@@ -37,7 +40,10 @@ func (j *Join) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
 
-	// Sequence is a 2-byte integer
+	// version is a 1-byte integer
+	bufferSize += 1
+
+	// sequence is a 2-byte integer
 	bufferSize += 2
 
 	// Group is a string with 1-byte length
@@ -48,14 +54,18 @@ func (j *Join) Marshal() ([]byte, error) {
 	bufferSize += 1
 
 	// Now serialize the message
-	b := make([]byte, bufferSize)
-	b = b[:0]
-	buffer := bytes.NewBuffer(b)
+	tmpBuf := make([]byte, bufferSize)
+	tmpBuf = tmpBuf[:0]
+	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
 	binary.Write(buffer, binary.BigEndian, JoinId)
 
-	// Sequence
-	binary.Write(buffer, binary.BigEndian, j.Sequence())
+	// version
+	value, _ := strconv.ParseUint("2", 10, 1*8)
+	binary.Write(buffer, binary.BigEndian, byte(value))
+
+	// sequence
+	binary.Write(buffer, binary.BigEndian, j.sequence)
 
 	// Group
 	putString(buffer, j.Group)
@@ -68,25 +78,36 @@ func (j *Join) Marshal() ([]byte, error) {
 
 // Unmarshals the message.
 func (j *Join) Unmarshal(frames ...[]byte) error {
+	if frames == nil {
+		return errors.New("Can't unmarshal empty message")
+	}
+
 	frame := frames[0]
 	frames = frames[1:]
 
 	buffer := bytes.NewBuffer(frame)
 
-	// Check the signature
+	// Get and check protocol signature
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		return errors.New("invalid signature")
 	}
 
+	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != JoinId {
 		return errors.New("malformed Join message")
 	}
 
-	// Sequence
+	// version
+	binary.Read(buffer, binary.BigEndian, &j.version)
+	if j.version != 2 {
+		return errors.New("malformed version message")
+	}
+
+	// sequence
 	binary.Read(buffer, binary.BigEndian, &j.sequence)
 
 	// Group
@@ -110,9 +131,9 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the address first
+	// If we're sending to a ROUTER, we send the routingId first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(j.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(j.routingId, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -127,24 +148,34 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should be set
+// RoutingId returns the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (j *Join) Address() []byte {
-	return j.address
+func (j *Join) RoutingId() []byte {
+	return j.routingId
 }
 
-// SetAddress sets the address for this message, address should be set
+// SetRoutingId sets the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (j *Join) SetAddress(address []byte) {
-	j.address = address
+func (j *Join) SetRoutingId(routingId []byte) {
+	j.routingId = routingId
 }
 
-// SetSequence sets the sequence.
+// Setversion sets the version.
+func (j *Join) SetVersion(version byte) {
+	j.version = version
+}
+
+// version returns the version.
+func (j *Join) Version() byte {
+	return j.version
+}
+
+// Setsequence sets the sequence.
 func (j *Join) SetSequence(sequence uint16) {
 	j.sequence = sequence
 }
 
-// Sequence returns the sequence.
+// sequence returns the sequence.
 func (j *Join) Sequence() uint16 {
 	return j.sequence
 }
