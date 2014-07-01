@@ -2,7 +2,7 @@ package gyre
 
 import (
 	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/msg"
+	"github.com/zeromq/gyre/zre/msg"
 
 	"bytes"
 	crand "crypto/rand"

@@ -2,7 +2,7 @@ package gyre
 
 import (
 	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/msg"
+	"github.com/zeromq/gyre/zre/msg"
 
 	"bytes"
 	crand "crypto/rand"
@@ -48,7 +48,7 @@ func TestGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp[4] = 1 // Sequence now is 1
+	exp[5] = 1 // Sequence now is 1
 
 	got, err := mailbox.Recv(0)
 	if err != nil {

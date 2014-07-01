@@ -7,13 +7,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Send a multi-part message to a peer
 type Whisper struct {
-	address  []byte
-	sequence uint16
-	Content  []byte
+	routingId []byte
+	version   byte
+	sequence  uint16
+	Content   []byte
 }
 
 // New creates new Whisper message.
@@ -24,7 +26,8 @@ func NewWhisper() *Whisper {
 
 // String returns print friendly name.
 func (w *Whisper) String() string {
-	str := "MSG_WHISPER:\n"
+	str := "ZRE_MSG_WHISPER:\n"
+	str += fmt.Sprintf("    version = %v\n", w.version)
 	str += fmt.Sprintf("    sequence = %v\n", w.sequence)
 	str += fmt.Sprintf("    Content = %v\n", w.Content)
 	return str
@@ -35,43 +38,61 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
 
-	// Sequence is a 2-byte integer
+	// version is a 1-byte integer
+	bufferSize += 1
+
+	// sequence is a 2-byte integer
 	bufferSize += 2
 
 	// Now serialize the message
-	b := make([]byte, bufferSize)
-	b = b[:0]
-	buffer := bytes.NewBuffer(b)
+	tmpBuf := make([]byte, bufferSize)
+	tmpBuf = tmpBuf[:0]
+	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
 	binary.Write(buffer, binary.BigEndian, WhisperId)
 
-	// Sequence
-	binary.Write(buffer, binary.BigEndian, w.Sequence())
+	// version
+	value, _ := strconv.ParseUint("2", 10, 1*8)
+	binary.Write(buffer, binary.BigEndian, byte(value))
+
+	// sequence
+	binary.Write(buffer, binary.BigEndian, w.sequence)
 
 	return buffer.Bytes(), nil
 }
 
 // Unmarshals the message.
 func (w *Whisper) Unmarshal(frames ...[]byte) error {
+	if frames == nil {
+		return errors.New("Can't unmarshal empty message")
+	}
+
 	frame := frames[0]
 	frames = frames[1:]
 
 	buffer := bytes.NewBuffer(frame)
 
-	// Check the signature
+	// Get and check protocol signature
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		return errors.New("invalid signature")
 	}
 
+	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != WhisperId {
 		return errors.New("malformed Whisper message")
 	}
 
-	// Sequence
+	// version
+	binary.Read(buffer, binary.BigEndian, &w.version)
+	if w.version != 2 {
+		return errors.New("malformed version message")
+	}
+
+	// sequence
 	binary.Read(buffer, binary.BigEndian, &w.sequence)
 
 	// Content
@@ -94,9 +115,9 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the address first
+	// If we're sending to a ROUTER, we send the routingId first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(w.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(w.routingId, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -113,24 +134,34 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should be set
+// RoutingId returns the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) Address() []byte {
-	return w.address
+func (w *Whisper) RoutingId() []byte {
+	return w.routingId
 }
 
-// SetAddress sets the address for this message, address should be set
+// SetRoutingId sets the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) SetAddress(address []byte) {
-	w.address = address
+func (w *Whisper) SetRoutingId(routingId []byte) {
+	w.routingId = routingId
 }
 
-// SetSequence sets the sequence.
+// Setversion sets the version.
+func (w *Whisper) SetVersion(version byte) {
+	w.version = version
+}
+
+// version returns the version.
+func (w *Whisper) Version() byte {
+	return w.version
+}
+
+// Setsequence sets the sequence.
 func (w *Whisper) SetSequence(sequence uint16) {
 	w.sequence = sequence
 }
 
-// Sequence returns the sequence.
+// sequence returns the sequence.
 func (w *Whisper) Sequence() uint16 {
 	return w.sequence
 }

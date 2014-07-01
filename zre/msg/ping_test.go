@@ -9,22 +9,24 @@ import (
 // Yay! Test function.
 func TestPing(t *testing.T) {
 
-	// Output
+	// Create pair of sockets we can send through
+
+	// Output socket
 	output, err := zmq.NewSocket(zmq.DEALER)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Close()
 
-	address := "Shout"
-	output.SetIdentity(address)
+	routingId := "Shout"
+	output.SetIdentity(routingId)
 	err = output.Bind("inproc://selftest-ping")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer output.Unbind("inproc://selftest-ping")
 
-	// Input
+	// Input socket
 	input, err := zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +41,7 @@ func TestPing(t *testing.T) {
 
 	// Create a Ping message and send it through the wire
 	ping := NewPing()
-	ping.SetSequence(123)
+	ping.sequence = 123
 
 	err = ping.Send(output)
 	if err != nil {
@@ -51,8 +53,8 @@ func TestPing(t *testing.T) {
 	}
 
 	tr := transit.(*Ping)
-	if tr.Sequence() != 123 {
-		t.Fatalf("expected %d, got %d", 123, tr.Sequence())
+	if tr.sequence != 123 {
+		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
 
 	err = tr.Send(input)
@@ -63,7 +65,7 @@ func TestPing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if address != string(tr.Address()) {
-		t.Fatalf("expected %s, got %s", address, string(tr.Address()))
+	if routingId != string(tr.RoutingId()) {
+		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}
 }

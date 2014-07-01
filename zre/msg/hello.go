@@ -7,17 +7,19 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Greet a peer so it can connect back to us
 type Hello struct {
-	address  []byte
-	sequence uint16
-	Endpoint string
-	Groups   []string
-	Status   byte
-	Name     string
-	Headers  map[string]string
+	routingId []byte
+	version   byte
+	sequence  uint16
+	Endpoint  string
+	Groups    []string
+	Status    byte
+	Name      string
+	Headers   map[string]string
 }
 
 // New creates new Hello message.
@@ -29,7 +31,8 @@ func NewHello() *Hello {
 
 // String returns print friendly name.
 func (h *Hello) String() string {
-	str := "MSG_HELLO:\n"
+	str := "ZRE_MSG_HELLO:\n"
+	str += fmt.Sprintf("    version = %v\n", h.version)
 	str += fmt.Sprintf("    sequence = %v\n", h.sequence)
 	str += fmt.Sprintf("    Endpoint = %v\n", h.Endpoint)
 	str += fmt.Sprintf("    Groups = %v\n", h.Groups)
@@ -44,7 +47,10 @@ func (h *Hello) Marshal() ([]byte, error) {
 	// Calculate size of serialized data
 	bufferSize := 2 + 1 // Signature and message ID
 
-	// Sequence is a 2-byte integer
+	// version is a 1-byte integer
+	bufferSize += 1
+
+	// sequence is a 2-byte integer
 	bufferSize += 2
 
 	// Endpoint is a string with 1-byte length
@@ -73,14 +79,18 @@ func (h *Hello) Marshal() ([]byte, error) {
 	}
 
 	// Now serialize the message
-	b := make([]byte, bufferSize)
-	b = b[:0]
-	buffer := bytes.NewBuffer(b)
+	tmpBuf := make([]byte, bufferSize)
+	tmpBuf = tmpBuf[:0]
+	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
 	binary.Write(buffer, binary.BigEndian, HelloId)
 
-	// Sequence
-	binary.Write(buffer, binary.BigEndian, h.Sequence())
+	// version
+	value, _ := strconv.ParseUint("2", 10, 1*8)
+	binary.Write(buffer, binary.BigEndian, byte(value))
+
+	// sequence
+	binary.Write(buffer, binary.BigEndian, h.sequence)
 
 	// Endpoint
 	putString(buffer, h.Endpoint)
@@ -109,25 +119,36 @@ func (h *Hello) Marshal() ([]byte, error) {
 
 // Unmarshals the message.
 func (h *Hello) Unmarshal(frames ...[]byte) error {
+	if frames == nil {
+		return errors.New("Can't unmarshal empty message")
+	}
+
 	frame := frames[0]
 	frames = frames[1:]
 
 	buffer := bytes.NewBuffer(frame)
 
-	// Check the signature
+	// Get and check protocol signature
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		return errors.New("invalid signature")
 	}
 
+	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
 	if id != HelloId {
 		return errors.New("malformed Hello message")
 	}
 
-	// Sequence
+	// version
+	binary.Read(buffer, binary.BigEndian, &h.version)
+	if h.version != 2 {
+		return errors.New("malformed version message")
+	}
+
+	// sequence
 	binary.Read(buffer, binary.BigEndian, &h.sequence)
 
 	// Endpoint
@@ -170,9 +191,9 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the address first
+	// If we're sending to a ROUTER, we send the routingId first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(h.address, zmq.SNDMORE)
+		_, err = socket.SendBytes(h.routingId, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -187,24 +208,34 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// Address returns the address for this message, address should be set
+// RoutingId returns the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (h *Hello) Address() []byte {
-	return h.address
+func (h *Hello) RoutingId() []byte {
+	return h.routingId
 }
 
-// SetAddress sets the address for this message, address should be set
+// SetRoutingId sets the routingId for this message, routingId should be set
 // whenever talking to a ROUTER.
-func (h *Hello) SetAddress(address []byte) {
-	h.address = address
+func (h *Hello) SetRoutingId(routingId []byte) {
+	h.routingId = routingId
 }
 
-// SetSequence sets the sequence.
+// Setversion sets the version.
+func (h *Hello) SetVersion(version byte) {
+	h.version = version
+}
+
+// version returns the version.
+func (h *Hello) Version() byte {
+	return h.version
+}
+
+// Setsequence sets the sequence.
 func (h *Hello) SetSequence(sequence uint16) {
 	h.sequence = sequence
 }
 
-// Sequence returns the sequence.
+// sequence returns the sequence.
 func (h *Hello) Sequence() uint16 {
 	return h.sequence
 }

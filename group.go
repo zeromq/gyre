@@ -1,7 +1,7 @@
 package gyre
 
 import (
-	"github.com/zeromq/gyre/msg"
+	"github.com/zeromq/gyre/zre/msg"
 )
 
 type group struct {
