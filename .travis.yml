@@ -8,7 +8,7 @@ install:
   - sudo apt-get update -y
   - sudo apt-get install -y curl make git libtool build-essential dh-autoreconf pkg-config mercurial dh-autoreconf
   - curl -o ./zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
-  - sudo tar -C . -zxvf ./zeromq.tar.gz
+  - tar -C . -zxvf ./zeromq.tar.gz
   - rm ./zeromq.tar.gz
   - cd zeromq-4.0.4
   - ./autogen.sh
