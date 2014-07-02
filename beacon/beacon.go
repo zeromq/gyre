@@ -24,6 +24,7 @@ import (
 	"errors"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -49,6 +50,7 @@ type Beacon struct {
 	addr       string        // Our own address
 	cast       *net.UDPAddr  // Our broadcast/multicast address
 	ticker     <-chan time.Time
+	wg         sync.WaitGroup
 }
 
 // Creates a new beacon on a certain UDP port.
@@ -100,7 +102,7 @@ func New(port int) (*Beacon, error) {
 	}
 
 	b := &Beacon{
-		signals:  make(chan *Signal),
+		signals:  make(chan *Signal, 50),
 		interval: defaultInterval,
 		addr:     ip.String(),
 		port:     port,
@@ -118,6 +120,12 @@ func New(port int) (*Beacon, error) {
 func (b *Beacon) Close() {
 	b.terminated = true
 	close(b.signals)
+
+	// Send a nil udp data to wake up listen()
+	b.conn.WriteToUDP(nil, b.cast)
+
+	b.wg.Wait()
+	b.conn.Close()
 }
 
 // Returns our own IP address as printable string
@@ -177,10 +185,16 @@ func (b *Beacon) Signals() chan *Signal {
 }
 
 func (b *Beacon) listen() {
-	buff := make([]byte, beaconMax)
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	for {
+		buff := make([]byte, beaconMax)
+		if b.terminated {
+			return
+		}
 		n, addr, err := b.conn.ReadFromUDP(buff)
-		if err != nil || n > beaconMax {
+		if err != nil || n > beaconMax || n == 0 {
 			continue
 		}
 
@@ -202,11 +216,14 @@ func (b *Beacon) listen() {
 }
 
 func (b *Beacon) signal() {
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	for {
 		select {
 		case <-b.ticker:
 			if b.terminated {
-				break
+				return
 			}
 			if b.transmit != nil {
 				// Signal other beacons

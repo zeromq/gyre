@@ -48,8 +48,11 @@ func TestBeacon(t *testing.T) {
 	}
 
 	node1, _ := New(5670)
+	defer node1.Close()
 	node2, _ := New(5670)
+	defer node2.Close()
 	node3, _ := New(5670)
+	defer node3.Close()
 
 	node1.SetInterval(50 * time.Millisecond)
 	node2.SetInterval(50 * time.Millisecond)
@@ -57,11 +60,12 @@ func TestBeacon(t *testing.T) {
 
 	node1.NoEcho()
 	node1.Subscribe([]byte("NODE"))
+	node2.Subscribe([]byte("NODE/1"))
+	node3.Subscribe([]byte("SOMETHING"))
+
 	node1.Publish([]byte("NODE/1"))
 	node2.Publish([]byte("NODE/2"))
 	node3.Publish([]byte("GARBAGE"))
-	node2.Subscribe([]byte("NODE/1"))
-	node3.Subscribe([]byte("SOMETHING"))
 
 	for i := 0; i < 10; i++ {
 		select {
@@ -78,6 +82,6 @@ func TestBeacon(t *testing.T) {
 		case signal := <-node3.Signals():
 			t.Fatalf("not expected to recieve any signal from node3, got %q, %q", signal.Addr, signal.Transmit)
 		}
-		time.Sleep(25 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 }
