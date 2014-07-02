@@ -8,7 +8,10 @@ import (
 
 func TestBeacon(t *testing.T) {
 	transmit := []byte("SAMPLE-BEACON")
-	b, _ := New(9999)
+	b, err := New(9999)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.SetInterval(50 * time.Millisecond)
 	b.Publish(transmit)
 
@@ -47,11 +50,20 @@ func TestBeacon(t *testing.T) {
 		}
 	}
 
-	node1, _ := New(5670)
+	node1, err := New(5670)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer node1.Close()
-	node2, _ := New(5670)
+	node2, err := New(5670)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer node2.Close()
-	node3, _ := New(5670)
+	node3, err := New(5670)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer node3.Close()
 
 	node1.SetInterval(50 * time.Millisecond)
