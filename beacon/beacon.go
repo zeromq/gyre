@@ -177,8 +177,8 @@ func (b *Beacon) Signals() chan *Signal {
 }
 
 func (b *Beacon) listen() {
+	buff := make([]byte, beaconMax)
 	for {
-		buff := make([]byte, beaconMax)
 		n, addr, err := b.conn.ReadFromUDP(buff)
 		if err != nil || n > beaconMax {
 			continue
