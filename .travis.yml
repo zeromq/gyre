@@ -1,0 +1,24 @@
+language: go
+
+go:
+  - 1.2
+  - 1.3
+
+install:
+  - sudo apt-get install curl make git libtool build-essential dh-autoreconf pkg-config mercurial
+  - curl -o /tmp/zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
+  - sudo tar -C /tmp -zxvf /tmp/zeromq.tar.gz
+  - rm /tmp/zeromq.tar.gz
+  - cd /tmp/zeromq-4.0.4
+  - ./autogen.sh
+  - ./configure
+  - make
+  - sudo make install
+  - export PKG_CONFIG_PATH=/tmp/zeromq-4.0.4/src/
+  - export LD_LIBRARY_PATH=/usr/local/lib/
+  - go get github.com/pebbe/zmq4
+  - go get github.com/zeromq/gyre/zre/msg
+  - go get github.com/zeromq/gyre/beacon 
+
+script:
+ - go test -v . ./beacon ./zre/msg ./shm
