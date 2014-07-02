@@ -19,6 +19,9 @@ install:
   - sudo make install
   - sudo ldconfig
   - cd ..
+  - go get github.com/pebbe/zmq4
+  - go get github.com/zeromq/gyre/zre/msg
+  - go get github.com/zeromq/gyre/beacon
 
 script:
  - go test -v . ./beacon ./zre/msg ./shm

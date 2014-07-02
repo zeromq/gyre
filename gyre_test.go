@@ -51,6 +51,7 @@ func stopNodes(n int) {
 		gyre[i].Stop()
 		gyre[i] = nil
 		nodes[i] = nil
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
