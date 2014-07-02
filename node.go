@@ -21,7 +21,7 @@ import (
 
 type node struct {
 	terminated chan struct{}       // API shut us down
-	wg         sync.WaitGroup      // wait group is used to wait until handler() is done
+	wg         sync.WaitGroup      // wait group is used to wait until actor() is done
 	events     chan *Event         // We send all Gyre events to the events channel
 	cmds       chan *cmd           // We receive commands from and send command replies and signals to the cmds channel
 	verbose    bool                // Log all traffic
@@ -79,6 +79,7 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 		peerGroups: make(map[string]*group),
 		ownGroups:  make(map[string]*group),
 		headers:    make(map[string]string),
+		terminated: make(chan struct{}),
 	}
 
 	n.inbox, err = zmq.NewSocket(zmq.ROUTER)
@@ -94,7 +95,7 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 	// the shorter string is more readable in logs
 	n.name = fmt.Sprintf("%.6s", fmt.Sprintf("%X", n.uuid))
 
-	n.wg.Add(1) // We're going to wait until handler() is done
+	n.wg.Add(1) // We're going to wait until actor() is done
 
 	return
 }
@@ -243,8 +244,7 @@ func (n *node) recvFromApi(c *cmd) {
 		n.interval = c.payload.(time.Duration)
 
 	case cmdUuid:
-		uuid := fmt.Sprintf("%X", n.uuid)
-		n.cmds <- &cmd{payload: uuid}
+		n.cmds <- &cmd{payload: n.identity()}
 
 	case cmdName:
 		n.cmds <- &cmd{payload: n.name}
@@ -280,7 +280,9 @@ func (n *node) recvFromApi(c *cmd) {
 		n.cmds <- &cmd{err: err}
 
 	case cmdStop, cmdTerm:
-		close(n.terminated)
+		if n.terminate != nil {
+			close(n.terminated)
+		}
 
 		// Wait and send the signal in a separate go routine
 		// because closing terminated channel
@@ -352,6 +354,10 @@ func (n *node) recvFromApi(c *cmd) {
 	default:
 		panic(fmt.Sprintf("Invalid command %q %#v", c.cmd, c))
 	}
+}
+
+func (n *node) identity() string {
+	return fmt.Sprintf("%X", n.uuid)
 }
 
 // requirePeer finds or creates peer via its UUID string
@@ -455,9 +461,20 @@ func (n *node) leavePeerGroup(peer *peer, name string) *group {
 
 // recvFromPeer handles messages coming from other peers
 func (n *node) recvFromPeer(transit msg.Transit) {
+	if transit == nil {
+		// Invalid transit
+		return
+	}
+
+	routingId := transit.RoutingId()
+	if len(routingId) < 1 {
+		// Invalid routing id, ignore the peer
+		return
+	}
+
 	// Router socket tells us the identity of this peer
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
-	identity := fmt.Sprintf("%X", transit.RoutingId()[1:])
+	identity := fmt.Sprintf("%X", routingId[1:])
 
 	peer := n.peers[identity]
 
@@ -495,7 +512,7 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 	}
 
 	if !peer.checkMessage(transit) {
-		log.Printf("W: [%s] lost messages from %s", n.name, identity)
+		log.Printf("[%s] lost messages from %s", n.name, identity)
 		return
 	}
 
@@ -637,21 +654,7 @@ func (n *node) terminate() {
 	n.inbox.Close()
 }
 
-func nodeActor(events chan *Event, cmds chan *cmd) {
-	node, err := newNode(events, cmds)
-	node.terminated = make(chan struct{})
-
-	if err != nil {
-		msg := fmt.Sprintf("%s", err)
-		node.events <- &Event{msg: []byte(msg)}
-	} else {
-		node.events <- &Event{}
-	}
-
-	go node.handler()
-}
-
-func (n *node) handler() {
+func (n *node) actor() {
 	defer func() {
 		n.wg.Done()
 	}()
@@ -711,7 +714,10 @@ func (n *node) pollInbox() {
 			case n.inbox:
 				t, err := msg.Recv(s)
 				if err != nil {
-
+					if n.verbose {
+						log.Printf("[%s] %s", n.name, err)
+					}
+					continue
 				}
 				n.inboxChan <- t
 			}

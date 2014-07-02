@@ -6,7 +6,6 @@
 package gyre
 
 import (
-	"errors"
 	"fmt"
 	"time"
 )
@@ -51,7 +50,14 @@ const (
 // New creates a new Gyre node. Note that until you start the
 // node it is silent and invisible to other nodes on the network.
 func New() (g *Gyre, err error) {
-	g = &Gyre{
+	g, _, err = newGyre()
+	return
+}
+
+// New creates a new Gyre node. This methods returns node object as well which is
+// used for testing purposes
+func newGyre() (*Gyre, *node, error) {
+	g := &Gyre{
 		// The following channels are used in nodeActor() method which is heart of the Gyre
 		// if something blocks while sending to one of these channels, it'll cause pause in
 		// the system which isn't desired.
@@ -59,16 +65,14 @@ func New() (g *Gyre, err error) {
 		cmds:   make(chan *cmd),          // Shouldn't be a buffered channel because the main select acts as a lock
 	}
 
-	go nodeActor(g.events, g.cmds)
-
-	// Start node engine and wait for it to be ready
-	event := <-g.events
-
-	if event.msg != nil {
-		return nil, errors.New(string(event.msg))
+	n, err := newNode(g.events, g.cmds)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return
+	go n.actor()
+
+	return g, n, nil
 }
 
 // Return our node UUID, after successful initialization
