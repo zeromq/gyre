@@ -119,13 +119,20 @@ func New(port int) (*Beacon, error) {
 // Terminates the beacon.
 func (b *Beacon) Close() {
 	b.terminated = true
-	close(b.signals)
+	if b.signals != nil {
+		close(b.signals)
+	}
 
 	// Send a nil udp data to wake up listen()
-	b.conn.WriteToUDP(nil, b.cast)
+	if b.conn != nil {
+		b.conn.WriteToUDP(nil, b.cast)
+	}
 
 	b.wg.Wait()
-	b.conn.Close()
+
+	if b.conn != nil {
+		b.conn.Close()
+	}
 }
 
 // Returns our own IP address as printable string
