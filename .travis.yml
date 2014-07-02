@@ -6,7 +6,7 @@ go:
 
 install:
   - sudo apt-get update -y
-  - sudo apt-get install -y curl make git libtool build-essential dh-autoreconf pkg-config mercurial
+  - sudo apt-get install -y curl make git libtool build-essential dh-autoreconf pkg-config mercurial dh-autoreconf
   - curl -o /tmp/zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
   - sudo tar -C /tmp -zxvf /tmp/zeromq.tar.gz
   - rm /tmp/zeromq.tar.gz
