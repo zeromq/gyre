@@ -71,7 +71,10 @@ func New(port int) (*Beacon, error) {
 				continue
 			}
 
-			ip, ipnet, _ = net.ParseCIDR(addrs[0].String())
+			ip, ipnet, err = net.ParseCIDR(addrs[0].String())
+			if err != nil {
+				continue
+			}
 
 			if iface.Flags&net.FlagMulticast != 0 {
 				casts, err := iface.MulticastAddrs()
