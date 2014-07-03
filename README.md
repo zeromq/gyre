@@ -70,8 +70,7 @@ Test the installation - You need at least version 1.2 example wont work with 1.0
     rm /tmp/zeromq.tar.gz
     cd /tmp/zeromq-4.0.4
     ./autogen.sh && ./configure && make && sudo make install
-    export PKG_CONFIG_PATH=/tmp/zeromq-4.0.4/src/
-    export LD_LIBRARY_PATH=/usr/local/lib/
+    sudo ldconfig
     cd -
 
 ### Install Gyre
