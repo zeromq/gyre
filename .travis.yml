@@ -21,7 +21,8 @@ install:
   - cd ..
   - go get github.com/pebbe/zmq4
   - go get github.com/zeromq/gyre/zre/msg
-  - go get github.com/zeromq/gyre/beacon
+  - go get -u github.com/zeromq/gyre/beacon
+  - go build -a
   - sudo ifconfig
 
 script:
