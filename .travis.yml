@@ -25,4 +25,4 @@ install:
   - sudo ifconfig
 
 script:
- - go test -v . ./beacon ./zre/msg ./shm
+ - export ZSYS_INTERFACE=lo && go test -v . ./beacon ./zre/msg ./shm
