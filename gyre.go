@@ -162,7 +162,7 @@ func (g *Gyre) SetVerbose() *Gyre {
 // Set ZRE discovery port; defaults to 5670, this call overrides that
 // so you can create independent clusters on the same network, for e.g
 // development vs production.
-func (g *Gyre) SetPort(port uint16) *Gyre {
+func (g *Gyre) SetPort(port int) *Gyre {
 	g.cmds <- &cmd{
 		cmd:     cmdSetPort,
 		payload: port,

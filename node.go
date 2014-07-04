@@ -238,7 +238,7 @@ func (n *node) recvFromApi(c *cmd) {
 		n.verbose = c.payload.(bool)
 
 	case cmdSetPort:
-		n.port = c.payload.(uint16)
+		n.beaconPort = c.payload.(int)
 
 	case cmdSetInterval:
 		n.interval = c.payload.(time.Duration)
