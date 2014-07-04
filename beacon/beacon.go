@@ -22,6 +22,7 @@ package beacon
 import (
 	"bytes"
 	"errors"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -64,6 +65,7 @@ func New(port int) (*Beacon, error) {
 	}
 
 	i := os.Getenv("ZSYS_INTERFACE")
+	log.Println(i)
 
 	if len(i) != 0 {
 		iface, err := net.InterfaceByName(i)
@@ -110,6 +112,7 @@ func New(port int) (*Beacon, error) {
 
 func (b *Beacon) initNet(iface *net.Interface) error {
 
+	log.Println(iface)
 	addrs, err := iface.Addrs()
 	if err != nil {
 		return err
@@ -119,6 +122,7 @@ func (b *Beacon) initNet(iface *net.Interface) error {
 	if err != nil {
 		return err
 	}
+	log.Println(ip, ipnet)
 
 	b.addr = ip.String()
 
@@ -139,6 +143,7 @@ func (b *Beacon) initNet(iface *net.Interface) error {
 	} else {
 		b.cast = &net.UDPAddr{Port: b.port, IP: net.IPv4bcast}
 	}
+	log.Println(b.cast)
 
 	b.conn, err = net.ListenUDP("udp", b.cast)
 	return err
