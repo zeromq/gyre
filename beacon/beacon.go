@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -56,67 +57,91 @@ type Beacon struct {
 // Creates a new beacon on a certain UDP port.
 func New(port int) (*Beacon, error) {
 
-	var (
-		ip    net.IP
-		ipnet *net.IPNet
-		found bool
-		cast  *net.UDPAddr
-	)
-
-	ifs, err := net.Interfaces()
-	for _, iface := range ifs {
-		if iface.Flags&net.FlagLoopback == 0 && (iface.Flags&net.FlagBroadcast != 0 || iface.Flags&net.FlagMulticast != 0) {
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-
-			ip, ipnet, err = net.ParseCIDR(addrs[0].String())
-			if err != nil {
-				continue
-			}
-
-			if iface.Flags&net.FlagMulticast != 0 {
-				casts, err := iface.MulticastAddrs()
-				if err != nil {
-					continue
-				}
-				cast = &net.UDPAddr{Port: port, IP: net.ParseIP(casts[0].String())}
-			} else if iface.Flags&net.FlagBroadcast != 0 {
-				bcast := ipnet.IP
-				for i := 0; i < len(ipnet.Mask); i++ {
-					bcast[i] |= ^ipnet.Mask[i]
-				}
-				cast = &net.UDPAddr{Port: port, IP: bcast}
-			}
-
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil, errors.New("no interfaces to bind to")
-	}
-
-	conn, err := net.ListenUDP("udp", cast)
-	if err != nil {
-		return nil, err
-	}
-
 	b := &Beacon{
 		signals:  make(chan *Signal, 50),
 		interval: defaultInterval,
-		addr:     ip.String(),
 		port:     port,
-		conn:     conn,
-		cast:     cast,
+	}
+
+	i := os.Getenv("ZSYS_INTERFACE")
+
+	if len(i) != 0 {
+		iface, err := net.InterfaceByName(i)
+		if err != nil {
+			return nil, err
+		}
+
+		err = b.initNet(iface)
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+
+		var found bool
+
+		ifs, err := net.Interfaces()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, iface := range ifs {
+			if iface.Flags&net.FlagLoopback == 0 && (iface.Flags&net.FlagBroadcast != 0 || iface.Flags&net.FlagMulticast != 0) {
+				err = b.initNet(&iface)
+				if err != nil {
+					continue
+				}
+
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return nil, errors.New("no interfaces to bind to")
+		}
 	}
 
 	go b.listen()
 	go b.signal()
 
 	return b, nil
+}
+
+func (b *Beacon) initNet(iface *net.Interface) error {
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return err
+	}
+
+	ip, ipnet, err := net.ParseCIDR(addrs[0].String())
+	if err != nil {
+		return err
+	}
+
+	b.addr = ip.String()
+
+	if iface.Flags&net.FlagMulticast != 0 {
+		casts, err := iface.MulticastAddrs()
+		if err != nil {
+			return err
+		}
+		b.cast = &net.UDPAddr{Port: b.port, IP: net.ParseIP(casts[0].String())}
+
+	} else if iface.Flags&net.FlagBroadcast != 0 {
+
+		bcast := ipnet.IP
+		for i := 0; i < len(ipnet.Mask); i++ {
+			bcast[i] |= ^ipnet.Mask[i]
+		}
+		b.cast = &net.UDPAddr{Port: b.port, IP: bcast}
+	} else {
+		b.cast = &net.UDPAddr{Port: b.port, IP: net.IPv4bcast}
+	}
+
+	b.conn, err = net.ListenUDP("udp", b.cast)
+	return err
 }
 
 // Terminates the beacon.
