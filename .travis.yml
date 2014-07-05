@@ -24,6 +24,7 @@ install:
   - go get -u github.com/zeromq/gyre/beacon
   - go build -a
   - sudo ifconfig
+  - uname -a
 
 script:
  - export ZSYS_INTERFACE=lo && go test -v . ./beacon ./zre/msg ./shm
