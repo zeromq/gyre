@@ -83,7 +83,10 @@ func (g *Gyre) Uuid() (uuid string) {
 
 	g.cmds <- &cmd{cmd: cmdUuid}
 	out := <-g.cmds
-	g.uuid = out.payload.(string)
+
+	if uuid, ok := out.payload.(string); ok {
+		g.uuid = uuid
+	}
 
 	return g.uuid
 }
@@ -97,7 +100,9 @@ func (g *Gyre) Name() (name string) {
 
 	g.cmds <- &cmd{cmd: cmdName}
 	out := <-g.cmds
-	g.name = out.payload.(string)
+	if name, ok := out.payload.(string); ok {
+		g.name = name
+	}
 
 	return g.name
 }
@@ -111,9 +116,8 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 		return
 	}
 
-	header = out.payload.(string)
-
-	return header, true
+	header, ok = out.payload.(string)
+	return header, ok
 }
 
 // Return headers
@@ -121,7 +125,11 @@ func (g *Gyre) Headers() map[string]string {
 	g.cmds <- &cmd{cmd: cmdHeaders}
 	out := <-g.cmds
 
-	return out.payload.(map[string]string)
+	if headers, ok := out.payload.(map[string]string); ok {
+		return headers
+	}
+
+	return nil
 }
 
 // Set node name; this is provided to other nodes during discovery.
