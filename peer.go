@@ -55,6 +55,10 @@ func (p *peer) connect(from []byte, endpoint string) (err error) {
 	if err != nil {
 		return err
 	}
+	err = p.mailbox.SetIpv6(true)
+	if err != nil {
+		return err
+	}
 
 	// Set our own identity on the socket so that receiving node
 	// knows who each message came from. Note that we cannot use

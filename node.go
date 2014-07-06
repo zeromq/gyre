@@ -4,6 +4,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 	"github.com/zeromq/gyre/beacon"
 	"github.com/zeromq/gyre/zre/msg"
+	"net"
 
 	"bytes"
 	crand "crypto/rand"
@@ -85,6 +86,10 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 	n.inbox, err = zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		return nil, err // Could not create new socket
+	}
+	err = n.inbox.SetIpv6(true)
+	if err != nil {
+		return nil, err
 	}
 
 	// Generate random uuid
@@ -177,8 +182,12 @@ func (n *node) start() (err error) {
 		if n.endpoint != "" {
 			panic("Endpoint is already set")
 		}
-
-		n.endpoint = fmt.Sprintf("tcp://%s:%d", n.beacon.Addr(), n.port)
+		ip := net.ParseIP(n.beacon.Addr())
+		if ip.To4() == nil {
+			n.endpoint = fmt.Sprintf("tcp://[%s]:%d", ip.String(), n.port)
+		} else {
+			n.endpoint = fmt.Sprintf("tcp://%s:%d", ip.String(), n.port)
+		}
 	} else if n.endpoint == "" {
 
 		hostname, err := os.Hostname()
@@ -361,7 +370,7 @@ func (n *node) identity() string {
 }
 
 // requirePeer finds or creates peer via its UUID string
-func (n *node) requirePeer(identity string, endpoint string) (peer *peer) {
+func (n *node) requirePeer(identity string, endpoint string) (peer *peer, err error) {
 	peer, ok := n.peers[identity]
 	if !ok {
 		// Purge any previous peer on same endpoint
@@ -372,7 +381,10 @@ func (n *node) requirePeer(identity string, endpoint string) (peer *peer) {
 		}
 
 		peer = newPeer(identity)
-		peer.connect(n.uuid, endpoint)
+		err = peer.connect(n.uuid, endpoint)
+		if err != nil {
+			return nil, err
+		}
 
 		// Handshake discovery by sending HELLO as first message
 		m := msg.NewHello()
@@ -391,7 +403,7 @@ func (n *node) requirePeer(identity string, endpoint string) (peer *peer) {
 		// TODO(armen): Send new peer event to logger, if any
 	}
 
-	return peer
+	return peer, nil
 }
 
 // Remove a peer from our data structures.
@@ -499,8 +511,13 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 				return
 			}
 		}
-		peer = n.requirePeer(identity, m.Endpoint)
-		peer.ready = true
+		var err error
+		peer, err = n.requirePeer(identity, m.Endpoint)
+		if err == nil {
+			peer.ready = true
+		} else if n.verbose {
+			log.Printf("[%s] %s", n.name, err)
+		}
 	}
 
 	// Ignore command if peer isn't ready
@@ -589,9 +606,6 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 // recvFromBeacon handles a new signal received from beacon
 func (n *node) recvFromBeacon(s *beacon.Signal) {
 
-	// Get IP address and beacon of peer
-	ipaddress := s.Addr
-
 	b := &aBeacon{}
 	buffer := bytes.NewBuffer(s.Transmit)
 	binary.Read(buffer, binary.BigEndian, &b.Protocol)
@@ -609,9 +623,20 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 		identity := fmt.Sprintf("%X", b.Uuid)
 
 		if b.Port != 0 {
-			endpoint := fmt.Sprintf("tcp://%s:%d", ipaddress, b.Port)
-			peer := n.requirePeer(identity, endpoint)
-			peer.refresh()
+			var endpoint string
+			// s.Addr is IP address of peer beacon
+			ip := net.ParseIP(s.Addr)
+			if ip.To4() == nil {
+				endpoint = fmt.Sprintf("tcp://[%s]:%d", ip.String(), b.Port)
+			} else {
+				endpoint = fmt.Sprintf("tcp://%s:%d", ip.String(), b.Port)
+			}
+			peer, err := n.requirePeer(identity, endpoint)
+			if err == nil {
+				peer.refresh()
+			} else if n.verbose {
+				log.Printf("[%s] %s", n.name, err)
+			}
 		} else {
 			// Zero port means peer is going away; remove it if
 			// we had any knowledge of it already
