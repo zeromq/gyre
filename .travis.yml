@@ -28,5 +28,7 @@ install:
   - sudo ifconfig
   - uname -a
 
+env: ZSYS_INTERFACE=lo
+
 script:
- - export ZSYS_INTERFACE=lo && go test -v . ./beacon ./zre/msg ./shm
+ - go test -v . ./beacon ./zre/msg ./shm
