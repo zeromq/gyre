@@ -8,12 +8,12 @@ import (
 
 func TestBeacon(t *testing.T) {
 	transmit := []byte("SAMPLE-BEACON")
-	b, err := New(9999)
+	b := New()
+	b.SetPort(9999).SetInterval(50 * time.Millisecond)
+	err := b.Publish(transmit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.SetInterval(50 * time.Millisecond)
-	b.Publish(transmit)
 
 	select {
 	case <-time.After(1 * time.Second):
@@ -50,34 +50,34 @@ func TestBeacon(t *testing.T) {
 		}
 	}
 
-	node1, err := New(5670)
-	if err != nil {
-		t.Fatal(err)
-	}
+	node1 := New()
 	defer node1.Close()
-	node2, err := New(5670)
-	if err != nil {
-		t.Fatal(err)
-	}
+	node2 := New()
 	defer node2.Close()
-	node3, err := New(5670)
-	if err != nil {
-		t.Fatal(err)
-	}
+	node3 := New()
 	defer node3.Close()
 
-	node1.SetInterval(50 * time.Millisecond)
-	node2.SetInterval(50 * time.Millisecond)
-	node3.SetInterval(50 * time.Millisecond)
+	node1.SetPort(5670).SetInterval(50 * time.Millisecond)
+	node2.SetPort(5670).SetInterval(50 * time.Millisecond)
+	node3.SetPort(5670).SetInterval(50 * time.Millisecond)
 
 	node1.NoEcho()
 	node1.Subscribe([]byte("NODE"))
 	node2.Subscribe([]byte("NODE/1"))
 	node3.Subscribe([]byte("SOMETHING"))
 
-	node1.Publish([]byte("NODE/1"))
-	node2.Publish([]byte("NODE/2"))
-	node3.Publish([]byte("GARBAGE"))
+	err = node1.Publish([]byte("NODE/1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = node2.Publish([]byte("NODE/2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = node3.Publish([]byte("GARBAGE"))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for i := 0; i < 10; i++ {
 		select {

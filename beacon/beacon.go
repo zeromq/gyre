@@ -60,6 +60,7 @@ type Beacon struct {
 	transmit   []byte           // Beacon transmit data
 	filter     []byte           // Beacon filter data
 	addr       string           // Our own address
+	iface      string
 	ticker     <-chan time.Time
 	wg         sync.WaitGroup
 	inAddr     *net.UDPAddr
@@ -67,32 +68,37 @@ type Beacon struct {
 }
 
 // Creates a new beacon on a certain UDP port.
-func New(port int) (b *Beacon, err error) {
+func New() (b *Beacon) {
 
 	b = &Beacon{
 		signals:  make(chan *Signal, 50),
 		interval: defaultInterval,
-		port:     port,
 	}
 
-	// TODO(armen): An API should be implemented to set the interface name
-	i := os.Getenv("BEACON_INTERFACE")
-	if i == "" {
-		i = os.Getenv("ZSYS_INTERFACE")
+	return b
+}
+
+func (b *Beacon) start() (err error) {
+
+	if b.iface == "" {
+		b.iface = os.Getenv("BEACON_INTERFACE")
+	}
+	if b.iface == "" {
+		b.iface = os.Getenv("ZSYS_INTERFACE")
 	}
 
 	var ifs []net.Interface
 
-	if i == "" {
+	if b.iface == "" {
 		ifs, err = net.Interfaces()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 	} else {
-		iface, err := net.InterfaceByName(i)
+		iface, err := net.InterfaceByName(b.iface)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		ifs = append(ifs, *iface)
 	}
@@ -106,7 +112,7 @@ func New(port int) (b *Beacon, err error) {
 	if !b.ipv4 {
 		conn, err := net.ListenPacket("udp6", net.JoinHostPort(net.IPv6linklocalallnodes.String(), strconv.Itoa(b.port)))
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		b.ipv6Conn = ipv6.NewPacketConn(conn)
@@ -124,11 +130,11 @@ func New(port int) (b *Beacon, err error) {
 			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
 			addrs, err := iface.Addrs()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			ip, _, err := net.ParseCIDR(addrs[0].String())
 			if err != nil {
-				return nil, err
+				return err
 			}
 			b.addr = ip.String()
 
@@ -149,11 +155,11 @@ func New(port int) (b *Beacon, err error) {
 			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
 			addrs, err := iface.Addrs()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			ip, _, err := net.ParseCIDR(addrs[0].String())
 			if err != nil {
-				return nil, err
+				return err
 			}
 			b.addr = ip.String()
 
@@ -167,13 +173,13 @@ func New(port int) (b *Beacon, err error) {
 	}
 
 	if b.ipv4Conn == nil && b.ipv6Conn == nil {
-		return nil, errors.New("no interfaces to bind to")
+		return errors.New("no interfaces to bind to")
 	}
 
 	go b.listen()
 	go b.signal()
 
-	return b, nil
+	return nil
 }
 
 // Terminates the beacon.
@@ -209,6 +215,18 @@ func (b *Beacon) Port() int {
 	return b.port
 }
 
+// SetInterface sets interface to bind and listen on.
+func (b *Beacon) SetInterface(iface string) *Beacon {
+	b.iface = iface
+	return b
+}
+
+// SetPort sets UDP port.
+func (b *Beacon) SetPort(port int) *Beacon {
+	b.port = port
+	return b
+}
+
 // SetInterval sets broadcast interval.
 func (b *Beacon) SetInterval(interval time.Duration) *Beacon {
 	b.interval = interval
@@ -222,14 +240,17 @@ func (b *Beacon) NoEcho() *Beacon {
 }
 
 // Publish starts broadcasting beacon to peers at the specified interval.
-func (b *Beacon) Publish(transmit []byte) *Beacon {
+func (b *Beacon) Publish(transmit []byte) error {
 	b.transmit = transmit
 	if b.interval == 0 {
 		b.ticker = time.After(defaultInterval)
 	} else {
 		b.ticker = time.After(b.interval)
 	}
-	return b
+
+	err := b.start()
+
+	return err
 }
 
 // Silence stops broadcasting beacon.
