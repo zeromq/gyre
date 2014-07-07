@@ -1,4 +1,4 @@
-Gyre [![GoDoc](https://godoc.org/github.com/zeromq/gyre?status.png)](https://godoc.org/github.com/zeromq/gyre)
+Gyre [![GoDoc](https://godoc.org/github.com/zeromq/gyre?status.png)](https://godoc.org/github.com/zeromq/gyre) [![Build Status](https://travis-ci.org/zeromq/gyre.svg?branch=master)](https://travis-ci.org/zeromq/gyre)
 ====
 
 This is a Golang port of [Zyre](zyre.org) 2.0, an open-source framework for proximity-based
