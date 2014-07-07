@@ -21,7 +21,7 @@ install:
   - cd ..
   - go get github.com/pebbe/zmq4
   - go get github.com/zeromq/gyre/zre/msg
-  - go get -u github.com/zeromq/gyre/beacon
+  - go get github.com/zeromq/gyre/beacon
   - go get code.google.com/p/go.net/ipv4
   - go get code.google.com/p/go.net/ipv6
   - go build -a
