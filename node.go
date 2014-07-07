@@ -255,7 +255,6 @@ func (n *node) recvFromApi(c *cmd) {
 		n.interval = c.payload.(time.Duration)
 
 	case cmdSetIface:
-		log.Println(c.payload.(string))
 		n.beacon.SetInterface(c.payload.(string))
 
 	case cmdUuid:
