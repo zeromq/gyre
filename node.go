@@ -83,6 +83,8 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 		terminated: make(chan struct{}),
 	}
 
+	n.beacon = beacon.New()
+
 	n.inbox, err = zmq.NewSocket(zmq.ROUTER)
 	if err != nil {
 		return nil, err // Could not create new socket
@@ -164,19 +166,19 @@ func (n *node) start() (err error) {
 		binary.Write(buffer, binary.BigEndian, b.Port)
 
 		// Create a beacon
-		n.beacon, err = beacon.New(n.beaconPort)
-		if err != nil {
-			return err
-		}
 		n.beacons = n.beacon.Signals()
 
 		if n.interval > 0 {
 			n.beacon.SetInterval(n.interval)
 		}
 
+		n.beacon.SetPort(n.beaconPort)
 		n.beacon.NoEcho()
 		n.beacon.Subscribe([]byte("ZRE"))
-		n.beacon.Publish(buffer.Bytes())
+		err := n.beacon.Publish(buffer.Bytes())
+		if err != nil {
+			return err
+		}
 
 		// Our own host endpoint is provided by the beacon
 		if n.endpoint != "" {
@@ -251,6 +253,10 @@ func (n *node) recvFromApi(c *cmd) {
 
 	case cmdSetInterval:
 		n.interval = c.payload.(time.Duration)
+
+	case cmdSetIface:
+		log.Println(c.payload.(string))
+		n.beacon.SetInterface(c.payload.(string))
 
 	case cmdUuid:
 		n.cmds <- &cmd{payload: n.identity()}

@@ -35,6 +35,7 @@ func launchNodes(n int) {
 		// You might want to make it verbose
 		gyre[i].SetVerbose()
 		gyre[i].SetPort(5660)
+		gyre[i].SetInterface("lo")
 		err = gyre[i].Start()
 		if err != nil {
 			log.Fatal(err)

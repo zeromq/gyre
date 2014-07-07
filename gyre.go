@@ -35,6 +35,7 @@ const (
 	cmdSetVerbose  = "SET VERBOSE"
 	cmdSetPort     = "SET PORT"
 	cmdSetInterval = "SET INTERVAL"
+	cmdSetIface    = "SET INTERFACE"
 	cmdStart       = "START"
 	cmdStop        = "STOP"
 	cmdJoin        = "JOIN"
@@ -195,7 +196,11 @@ func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 // with multiple interfaces you really should specify which one you
 // want to use, or strange things can happen.
 func (g *Gyre) SetInterface(iface string) *Gyre {
-	// TODO(armen): Implement SetInterface
+	g.cmds <- &cmd{
+		cmd:     cmdSetIface,
+		payload: iface,
+	}
+
 	return g
 }
 
