@@ -33,8 +33,9 @@ func launchNodes(n int) {
 		headers[i] = make(map[string]string)
 		headers[i]["X-HELLO-"+strconv.Itoa(i)] = "World-" + strconv.Itoa(i)
 		// You might want to make it verbose
-		// gyre[i].SetVerbose()
-		gyre[i].SetPort(5670)
+		gyre[i].SetVerbose()
+		gyre[i].SetPort(5660)
+		gyre[i].SetInterface("lo")
 		err = gyre[i].Start()
 		if err != nil {
 			log.Fatal(err)
@@ -51,6 +52,7 @@ func stopNodes(n int) {
 		gyre[i].Stop()
 		gyre[i] = nil
 		nodes[i] = nil
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

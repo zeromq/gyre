@@ -35,6 +35,7 @@ const (
 	cmdSetVerbose  = "SET VERBOSE"
 	cmdSetPort     = "SET PORT"
 	cmdSetInterval = "SET INTERVAL"
+	cmdSetIface    = "SET INTERFACE"
 	cmdStart       = "START"
 	cmdStop        = "STOP"
 	cmdJoin        = "JOIN"
@@ -83,7 +84,10 @@ func (g *Gyre) Uuid() (uuid string) {
 
 	g.cmds <- &cmd{cmd: cmdUuid}
 	out := <-g.cmds
-	g.uuid = out.payload.(string)
+
+	if uuid, ok := out.payload.(string); ok {
+		g.uuid = uuid
+	}
 
 	return g.uuid
 }
@@ -97,7 +101,9 @@ func (g *Gyre) Name() (name string) {
 
 	g.cmds <- &cmd{cmd: cmdName}
 	out := <-g.cmds
-	g.name = out.payload.(string)
+	if name, ok := out.payload.(string); ok {
+		g.name = name
+	}
 
 	return g.name
 }
@@ -111,9 +117,8 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 		return
 	}
 
-	header = out.payload.(string)
-
-	return header, true
+	header, ok = out.payload.(string)
+	return header, ok
 }
 
 // Return headers
@@ -121,7 +126,11 @@ func (g *Gyre) Headers() map[string]string {
 	g.cmds <- &cmd{cmd: cmdHeaders}
 	out := <-g.cmds
 
-	return out.payload.(map[string]string)
+	if headers, ok := out.payload.(map[string]string); ok {
+		return headers
+	}
+
+	return nil
 }
 
 // Set node name; this is provided to other nodes during discovery.
@@ -162,7 +171,7 @@ func (g *Gyre) SetVerbose() *Gyre {
 // Set ZRE discovery port; defaults to 5670, this call overrides that
 // so you can create independent clusters on the same network, for e.g
 // development vs production.
-func (g *Gyre) SetPort(port uint16) *Gyre {
+func (g *Gyre) SetPort(port int) *Gyre {
 	g.cmds <- &cmd{
 		cmd:     cmdSetPort,
 		payload: port,
@@ -187,7 +196,11 @@ func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 // with multiple interfaces you really should specify which one you
 // want to use, or strange things can happen.
 func (g *Gyre) SetInterface(iface string) *Gyre {
-	// TODO(armen): Implement SetInterface
+	g.cmds <- &cmd{
+		cmd:     cmdSetIface,
+		payload: iface,
+	}
+
 	return g
 }
 

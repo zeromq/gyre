@@ -20,16 +20,27 @@
 package beacon
 
 import (
+	"code.google.com/p/go.net/ipv4"
+	"code.google.com/p/go.net/ipv6"
+
 	"bytes"
 	"errors"
 	"net"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	beaconMax       = 255
 	defaultInterval = 1 * time.Second
+)
+
+var (
+	ipv4Group = "224.0.0.250"
+	ipv6Group = "ff02::fa"
 )
 
 type Signal struct {
@@ -39,85 +50,159 @@ type Signal struct {
 
 type Beacon struct {
 	signals    chan *Signal
-	conn       *net.UDPConn  // UDP connection for send/recv
-	port       int           // UDP port number we work on
-	interval   time.Duration // Beacon broadcast interval
-	noecho     bool          // Ignore own (unique) beacons
-	terminated bool          // API shut us down
-	transmit   []byte        // Beacon transmit data
-	filter     []byte        // Beacon filter data
-	addr       string        // Our own address
-	cast       *net.UDPAddr  // Our broadcast/multicast address
+	ipv4Conn   *ipv4.PacketConn // UDP incoming connection for sending/receiving beacons
+	ipv6Conn   *ipv6.PacketConn // UDP incoming connection for sending/receiving beacons
+	ipv4       bool             // Whether or not connection is in ipv4 mode
+	port       int              // UDP port number we work on
+	interval   time.Duration    // Beacon broadcast interval
+	noecho     bool             // Ignore own (unique) beacons
+	terminated bool             // API shut us down
+	transmit   []byte           // Beacon transmit data
+	filter     []byte           // Beacon filter data
+	addr       string           // Our own address
+	iface      string
 	ticker     <-chan time.Time
+	wg         sync.WaitGroup
+	inAddr     *net.UDPAddr
+	outAddr    *net.UDPAddr
 }
 
 // Creates a new beacon on a certain UDP port.
-func New(port int) (*Beacon, error) {
+func New() (b *Beacon) {
 
-	var (
-		ip    net.IP
-		ipnet *net.IPNet
-		found bool
-		cast  *net.UDPAddr
-	)
+	b = &Beacon{
+		signals:  make(chan *Signal, 50),
+		interval: defaultInterval,
+	}
 
-	ifs, err := net.Interfaces()
+	return b
+}
+
+func (b *Beacon) start() (err error) {
+
+	if b.iface == "" {
+		b.iface = os.Getenv("BEACON_INTERFACE")
+	}
+	if b.iface == "" {
+		b.iface = os.Getenv("ZSYS_INTERFACE")
+	}
+
+	var ifs []net.Interface
+
+	if b.iface == "" {
+		ifs, err = net.Interfaces()
+		if err != nil {
+			return err
+		}
+
+	} else {
+		iface, err := net.InterfaceByName(b.iface)
+		if err != nil {
+			return err
+		}
+		ifs = append(ifs, *iface)
+	}
+
+	conn, err := net.ListenPacket("udp4", net.JoinHostPort("224.0.0.0", strconv.Itoa(b.port)))
+	if err == nil {
+		b.ipv4Conn = ipv4.NewPacketConn(conn)
+		b.ipv4Conn.SetMulticastLoopback(true)
+	}
+
+	if !b.ipv4 {
+		conn, err := net.ListenPacket("udp6", net.JoinHostPort(net.IPv6linklocalallnodes.String(), strconv.Itoa(b.port)))
+		if err != nil {
+			return err
+		}
+
+		b.ipv6Conn = ipv6.NewPacketConn(conn)
+		b.ipv6Conn.SetMulticastLoopback(true)
+	}
+
 	for _, iface := range ifs {
-		if iface.Flags&net.FlagLoopback == 0 && (iface.Flags&net.FlagBroadcast != 0 || iface.Flags&net.FlagMulticast != 0) {
+		if b.ipv4Conn != nil {
+			b.inAddr = &net.UDPAddr{
+				IP: net.ParseIP(ipv4Group),
+			}
+			b.ipv4Conn.JoinGroup(&iface, b.inAddr)
+
+			// Find IP of the interface
+			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
 			addrs, err := iface.Addrs()
 			if err != nil {
-				continue
+				return err
+			}
+			ip, _, err := net.ParseCIDR(addrs[0].String())
+			if err != nil {
+				return err
+			}
+			b.addr = ip.String()
+
+			if iface.Flags&net.FlagLoopback != 0 {
+				b.outAddr = &net.UDPAddr{IP: net.IPv4allsys, Port: b.port}
+			} else {
+				b.outAddr = &net.UDPAddr{IP: net.ParseIP(ipv4Group), Port: b.port}
 			}
 
-			ip, ipnet, _ = net.ParseCIDR(addrs[0].String())
-
-			if iface.Flags&net.FlagMulticast != 0 {
-				casts, err := iface.MulticastAddrs()
-				if err != nil {
-					continue
-				}
-				cast = &net.UDPAddr{Port: port, IP: net.ParseIP(casts[0].String())}
-			} else if iface.Flags&net.FlagBroadcast != 0 {
-				bcast := ipnet.IP
-				for i := 0; i < len(ipnet.Mask); i++ {
-					bcast[i] |= ^ipnet.Mask[i]
-				}
-				cast = &net.UDPAddr{Port: port, IP: bcast}
+			break
+		} else {
+			b.inAddr = &net.UDPAddr{
+				IP: net.ParseIP(ipv6Group),
 			}
+			b.ipv6Conn.JoinGroup(&iface, b.inAddr)
 
-			found = true
+			// Find IP of the interface
+			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
+			addrs, err := iface.Addrs()
+			if err != nil {
+				return err
+			}
+			ip, _, err := net.ParseCIDR(addrs[0].String())
+			if err != nil {
+				return err
+			}
+			b.addr = ip.String()
+
+			if iface.Flags&net.FlagLoopback != 0 {
+				b.outAddr = &net.UDPAddr{IP: net.IPv6interfacelocalallnodes, Port: b.port}
+			} else {
+				b.outAddr = &net.UDPAddr{IP: net.ParseIP(ipv6Group), Port: b.port}
+			}
 			break
 		}
 	}
 
-	if !found {
-		return nil, errors.New("no interfaces to bind to")
-	}
-
-	conn, err := net.ListenUDP("udp", cast)
-	if err != nil {
-		return nil, err
-	}
-
-	b := &Beacon{
-		signals:  make(chan *Signal),
-		interval: defaultInterval,
-		addr:     ip.String(),
-		port:     port,
-		conn:     conn,
-		cast:     cast,
+	if b.ipv4Conn == nil && b.ipv6Conn == nil {
+		return errors.New("no interfaces to bind to")
 	}
 
 	go b.listen()
 	go b.signal()
 
-	return b, nil
+	return nil
 }
 
 // Terminates the beacon.
 func (b *Beacon) Close() {
 	b.terminated = true
-	close(b.signals)
+	if b.signals != nil {
+		close(b.signals)
+	}
+
+	// Send a nil udp data to wake up listen()
+	if b.ipv4Conn != nil {
+		b.ipv4Conn.WriteTo(nil, nil, b.outAddr)
+	} else {
+		b.ipv6Conn.WriteTo(nil, nil, b.outAddr)
+	}
+
+	b.wg.Wait()
+
+	if b.ipv4Conn != nil {
+		b.ipv4Conn.Close()
+	} else {
+		b.ipv6Conn.Close()
+	}
 }
 
 // Returns our own IP address as printable string
@@ -128,6 +213,18 @@ func (b *Beacon) Addr() string {
 // Port returns port number
 func (b *Beacon) Port() int {
 	return b.port
+}
+
+// SetInterface sets interface to bind and listen on.
+func (b *Beacon) SetInterface(iface string) *Beacon {
+	b.iface = iface
+	return b
+}
+
+// SetPort sets UDP port.
+func (b *Beacon) SetPort(port int) *Beacon {
+	b.port = port
+	return b
 }
 
 // SetInterval sets broadcast interval.
@@ -143,14 +240,17 @@ func (b *Beacon) NoEcho() *Beacon {
 }
 
 // Publish starts broadcasting beacon to peers at the specified interval.
-func (b *Beacon) Publish(transmit []byte) *Beacon {
+func (b *Beacon) Publish(transmit []byte) error {
 	b.transmit = transmit
 	if b.interval == 0 {
 		b.ticker = time.After(defaultInterval)
 	} else {
 		b.ticker = time.After(b.interval)
 	}
-	return b
+
+	err := b.start()
+
+	return err
 }
 
 // Silence stops broadcasting beacon.
@@ -177,11 +277,30 @@ func (b *Beacon) Signals() chan *Signal {
 }
 
 func (b *Beacon) listen() {
+	b.wg.Add(1)
+	defer b.wg.Done()
+
+	var (
+		n    int
+		addr net.Addr
+		err  error
+	)
+
 	for {
 		buff := make([]byte, beaconMax)
-		n, addr, err := b.conn.ReadFromUDP(buff)
-		if err != nil || n > beaconMax {
-			continue
+		if b.terminated {
+			return
+		}
+		if b.ipv4Conn != nil {
+			n, _, addr, err = b.ipv4Conn.ReadFrom(buff)
+			if err != nil || n > beaconMax || n == 0 {
+				continue
+			}
+		} else {
+			n, _, addr, err = b.ipv6Conn.ReadFrom(buff)
+			if err != nil || n > beaconMax || n == 0 {
+				continue
+			}
 		}
 
 		send := bytes.HasPrefix(buff[:n], b.filter)
@@ -190,11 +309,10 @@ func (b *Beacon) listen() {
 		}
 
 		if send && !b.terminated {
-			// Send the arrived signal to the Signals channel
 			parts := strings.SplitN(addr.String(), ":", 2)
-			ipaddress := parts[0]
+			ipaddr := parts[0]
 			select {
-			case b.signals <- &Signal{ipaddress, buff[:n]}:
+			case b.signals <- &Signal{ipaddr, buff[:n]}:
 			default:
 			}
 		}
@@ -202,15 +320,22 @@ func (b *Beacon) listen() {
 }
 
 func (b *Beacon) signal() {
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	for {
 		select {
 		case <-b.ticker:
 			if b.terminated {
-				break
+				return
 			}
 			if b.transmit != nil {
 				// Signal other beacons
-				b.conn.WriteToUDP(b.transmit, b.cast)
+				if b.ipv4Conn != nil {
+					b.ipv4Conn.WriteTo(b.transmit, nil, b.outAddr)
+				} else {
+					b.ipv6Conn.WriteTo(b.transmit, nil, b.outAddr)
+				}
 			}
 			b.ticker = time.After(b.interval)
 		}
