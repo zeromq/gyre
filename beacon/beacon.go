@@ -28,7 +28,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -107,6 +106,7 @@ func (b *Beacon) start() (err error) {
 	if err == nil {
 		b.ipv4Conn = ipv4.NewPacketConn(conn)
 		b.ipv4Conn.SetMulticastLoopback(true)
+		b.ipv4Conn.SetControlMessage(ipv4.FlagSrc, true)
 	}
 
 	if !b.ipv4 {
@@ -117,6 +117,7 @@ func (b *Beacon) start() (err error) {
 
 		b.ipv6Conn = ipv6.NewPacketConn(conn)
 		b.ipv6Conn.SetMulticastLoopback(true)
+		b.ipv6Conn.SetControlMessage(ipv6.FlagSrc, true)
 	}
 
 	for _, iface := range ifs {
@@ -282,7 +283,7 @@ func (b *Beacon) listen() {
 
 	var (
 		n    int
-		addr net.Addr
+		addr net.IP
 		err  error
 	)
 
@@ -292,15 +293,19 @@ func (b *Beacon) listen() {
 			return
 		}
 		if b.ipv4Conn != nil {
-			n, _, addr, err = b.ipv4Conn.ReadFrom(buff)
+			var cm *ipv4.ControlMessage
+			n, cm, _, err = b.ipv4Conn.ReadFrom(buff)
 			if err != nil || n > beaconMax || n == 0 {
 				continue
 			}
+			addr = cm.Src
 		} else {
-			n, _, addr, err = b.ipv6Conn.ReadFrom(buff)
+			var cm *ipv6.ControlMessage
+			n, cm, _, err = b.ipv6Conn.ReadFrom(buff)
 			if err != nil || n > beaconMax || n == 0 {
 				continue
 			}
+			addr = cm.Src
 		}
 
 		send := bytes.HasPrefix(buff[:n], b.filter)
@@ -309,10 +314,8 @@ func (b *Beacon) listen() {
 		}
 
 		if send && !b.terminated {
-			parts := strings.SplitN(addr.String(), ":", 2)
-			ipaddr := parts[0]
 			select {
-			case b.signals <- &Signal{ipaddr, buff[:n]}:
+			case b.signals <- &Signal{addr.String(), buff[:n]}:
 			default:
 			}
 		}
