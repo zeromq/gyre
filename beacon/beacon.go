@@ -20,9 +20,6 @@
 package beacon
 
 import (
-	"code.google.com/p/go.net/ipv4"
-	"code.google.com/p/go.net/ipv6"
-
 	"bytes"
 	"errors"
 	"net"
@@ -30,6 +27,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"code.google.com/p/go.net/ipv4"
+	"code.google.com/p/go.net/ipv6"
 )
 
 const (
@@ -120,6 +120,8 @@ func (b *Beacon) start() (err error) {
 		b.ipv6Conn.SetControlMessage(ipv6.FlagSrc, true)
 	}
 
+	broadcast := os.Getenv("BEACON_BROADCAST") != ""
+
 	for _, iface := range ifs {
 		if b.ipv4Conn != nil {
 			b.inAddr = &net.UDPAddr{
@@ -133,20 +135,29 @@ func (b *Beacon) start() (err error) {
 			if err != nil {
 				return err
 			}
-			ip, _, err := net.ParseCIDR(addrs[0].String())
+			ip, ipnet, err := net.ParseCIDR(addrs[0].String())
 			if err != nil {
 				return err
 			}
 			b.addr = ip.String()
 
-			if iface.Flags&net.FlagLoopback != 0 {
+			switch {
+			case broadcast:
+				bcast := ipnet.IP
+				for i := 0; i < len(ipnet.Mask); i++ {
+					bcast[i] |= ^ipnet.Mask[i]
+				}
+				b.outAddr = &net.UDPAddr{IP: bcast, Port: b.port}
+
+			case iface.Flags&net.FlagLoopback != 0:
 				b.outAddr = &net.UDPAddr{IP: net.IPv4allsys, Port: b.port}
-			} else {
+
+			default:
 				b.outAddr = &net.UDPAddr{IP: net.ParseIP(ipv4Group), Port: b.port}
 			}
 
 			break
-		} else {
+		} else if b.ipv6Conn != nil {
 			b.inAddr = &net.UDPAddr{
 				IP: net.ParseIP(ipv6Group),
 			}
@@ -158,15 +169,24 @@ func (b *Beacon) start() (err error) {
 			if err != nil {
 				return err
 			}
-			ip, _, err := net.ParseCIDR(addrs[0].String())
+			ip, ipnet, err := net.ParseCIDR(addrs[0].String())
 			if err != nil {
 				return err
 			}
 			b.addr = ip.String()
 
-			if iface.Flags&net.FlagLoopback != 0 {
+			switch {
+			case broadcast:
+				bcast := ipnet.IP
+				for i := 0; i < len(ipnet.Mask); i++ {
+					bcast[i] |= ^ipnet.Mask[i]
+				}
+				b.outAddr = &net.UDPAddr{IP: bcast, Port: b.port}
+
+			case iface.Flags&net.FlagLoopback != 0:
 				b.outAddr = &net.UDPAddr{IP: net.IPv6interfacelocalallnodes, Port: b.port}
-			} else {
+
+			default:
 				b.outAddr = &net.UDPAddr{IP: net.ParseIP(ipv6Group), Port: b.port}
 			}
 			break
