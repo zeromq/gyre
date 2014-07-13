@@ -11,46 +11,46 @@ func TestShm(t *testing.T) {
 
 	hm := New()
 	hm.Subtree("This/Is/It").Node("1").SetVal(testVal)
-	val := hm.Subtree("This/Is/It").Node("1").Val()
+	val := hm.Subtree("This/Is/It").Node("1").Val
 
 	if !bytes.Equal(val, testVal) {
 		t.Errorf("expected [% x] but got [% x]", testVal, val)
 	}
 
-	hm.Subtree("This/Is/It").Node("1").Props()["foo"] = "bar"
+	hm.Subtree("This/Is/It").Node("1").Props["foo"] = "bar"
 
-	if val := hm.Subtree("This/Is/It").Node("1").Props()["foo"]; val != "bar" {
+	if val := hm.Subtree("This/Is/It").Node("1").Props["foo"]; val != "bar" {
 		t.Errorf("expected %q but got %q", "bar", val)
 	}
 
-	if val := hm.Subtree("This/Is/It").Node("1").Props().Get("foo"); val != "bar" {
+	if val := hm.Subtree("This/Is/It").Node("1").Props.Get("foo"); val != "bar" {
 		t.Errorf("expected %q but got %q", "bar", val)
 	}
 
-	empty := hm.Subtree("This/Is/It").Node("1").Props().Get("foo2")
+	empty := hm.Subtree("This/Is/It").Node("1").Props.Get("foo2")
 	if empty != "" {
 		t.Errorf("expected an empty property but got %q", empty)
 	}
 
-	empty, ok := hm.Subtree("This/Is/It").Node("1").Props().GetOk("foo3")
+	empty, ok := hm.Subtree("This/Is/It").Node("1").Props.GetOk("foo3")
 	if empty != "" || ok {
 		t.Errorf("expected an empty property but got %q", empty)
 	}
 
 	hm.Subtree("This/Is/It").DelNode("1")
-	emptyVal := hm.Subtree("This/Is/It").Node("1").Val()
+	emptyVal := hm.Subtree("This/Is/It").Node("1").Val
 	if !bytes.Equal(emptyVal, []byte("")) {
 		t.Errorf("expected an empty val but got [% x]", emptyVal)
 	}
 
 	hm.Subtree("This/Is/It2").Node("2").SetVal(testVal2)
-	val = hm.Subtree("This/Is/It2").Node("2").Val()
+	val = hm.Subtree("This/Is/It2").Node("2").Val
 	if !bytes.Equal(val, testVal2) {
 		t.Errorf("expected [% x] but got [% x]", testVal, val)
 	}
 
 	hm.DelSubtree("This/Is/It2")
-	emptyVal = hm.Subtree("This/Is/It2").Node("2").Val()
+	emptyVal = hm.Subtree("This/Is/It2").Node("2").Val
 	if !bytes.Equal(emptyVal, []byte("")) {
 		t.Errorf("expected an empty val but got [% x]", emptyVal)
 	}

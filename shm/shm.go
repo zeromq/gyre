@@ -5,8 +5,8 @@
 package shm
 
 type node struct {
-	val   []byte
-	props kvs
+	Val   []byte `json:"val"`
+	Props kvs    `json:"props"`
 }
 
 type kvs map[string]string
@@ -49,7 +49,7 @@ func (s subtree) Node(key string) *node {
 		return n
 	}
 
-	s[key] = &node{props: make(map[string]string)}
+	s[key] = &node{Props: make(map[string]string)}
 	return s[key]
 }
 
@@ -67,31 +67,21 @@ func (s subtree) DelNode(key string) subtree {
 
 // SetVal sets the value of current node.
 func (n *node) SetVal(val []byte) *node {
-	n.val = val
+	n.Val = val
 	return n
-}
-
-// Val returns the value of current node.
-func (n *node) Val() []byte {
-	return n.val
 }
 
 // String casts val to string.
 func (n *node) String() string {
-	return string(n.val)
-}
-
-// Props returns all properties of the current node. Properties can be iterated as a normal Go map.
-func (n *node) Props() kvs {
-	return n.props
+	return string(n.Val)
 }
 
 // SetProps sets properties from a map
 func (n *node) SetProps(props map[string]string) kvs {
 	for key, val := range props {
-		n.props[key] = val
+		n.Props[key] = val
 	}
-	return n.props
+	return n.Props
 }
 
 // Sets a new property or replaces it with new one.
