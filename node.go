@@ -413,6 +413,10 @@ func (n *node) requirePeer(identity string, endpoint string) (peer *peer, err er
 
 // Remove a peer from our data structures.
 func (n *node) removePeer(peer *peer) {
+	if peer == nil {
+		return
+	}
+
 	// Tell the calling application the peer has gone
 	n.events <- &Event{
 		eventType: EventExit,
