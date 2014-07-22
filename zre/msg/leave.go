@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Leave a group
@@ -100,19 +100,15 @@ func (l *Leave) Unmarshal(frames ...[]byte) error {
 	if id != LeaveId {
 		return errors.New("malformed Leave message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &l.version)
 	if l.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &l.sequence)
-
 	// Group
 	l.Group = getString(buffer)
-
 	// Status
 	binary.Read(buffer, binary.BigEndian, &l.Status)
 

@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Send a multi-part message to a peer
@@ -44,6 +44,9 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	// sequence is a 2-byte integer
 	bufferSize += 2
 
+	// Content is a block of []byte with one byte length
+	bufferSize += 1 + len(w.Content)
+
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
@@ -57,6 +60,8 @@ func (w *Whisper) Marshal() ([]byte, error) {
 
 	// sequence
 	binary.Write(buffer, binary.BigEndian, w.sequence)
+
+	putBytes(buffer, w.Content)
 
 	return buffer.Bytes(), nil
 }
@@ -85,20 +90,16 @@ func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	if id != WhisperId {
 		return errors.New("malformed Whisper message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &w.version)
 	if w.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &w.sequence)
-
 	// Content
-	if 0 <= len(frames)-1 {
-		w.Content = frames[0]
-	}
+
+	w.Content = getBytes(buffer)
 
 	return nil
 }

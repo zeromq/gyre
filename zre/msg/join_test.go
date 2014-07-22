@@ -1,9 +1,9 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"testing"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Yay! Test function.
@@ -41,8 +41,11 @@ func TestJoin(t *testing.T) {
 
 	// Create a Join message and send it through the wire
 	join := NewJoin()
+
 	join.sequence = 123
+
 	join.Group = "Life is short but Now lasts for ever"
+
 	join.Status = 123
 
 	err = join.Send(output)
@@ -55,12 +58,15 @@ func TestJoin(t *testing.T) {
 	}
 
 	tr := transit.(*Join)
+
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
+
 	if tr.Group != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
 	}
+
 	if tr.Status != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.Status)
 	}
@@ -69,10 +75,12 @@ func TestJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err = Recv(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if routingId != string(tr.RoutingId()) {
 		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}

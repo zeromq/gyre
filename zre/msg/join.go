@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Join a group
@@ -100,19 +100,15 @@ func (j *Join) Unmarshal(frames ...[]byte) error {
 	if id != JoinId {
 		return errors.New("malformed Join message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &j.version)
 	if j.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &j.sequence)
-
 	// Group
 	j.Group = getString(buffer)
-
 	// Status
 	binary.Read(buffer, binary.BigEndian, &j.Status)
 
