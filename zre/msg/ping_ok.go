@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Reply to a peer's ping
@@ -83,13 +83,11 @@ func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	if id != PingOkId {
 		return errors.New("malformed PingOk message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &p.version)
 	if p.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &p.sequence)
 

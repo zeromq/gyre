@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Greet a peer so it can connect back to us
@@ -141,32 +141,25 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	if id != HelloId {
 		return errors.New("malformed Hello message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &h.version)
 	if h.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &h.sequence)
-
 	// Endpoint
 	h.Endpoint = getString(buffer)
-
 	// Groups
 	var groupsSize uint32
 	binary.Read(buffer, binary.BigEndian, &groupsSize)
 	for ; groupsSize != 0; groupsSize-- {
 		h.Groups = append(h.Groups, getLongString(buffer))
 	}
-
 	// Status
 	binary.Read(buffer, binary.BigEndian, &h.Status)
-
 	// Name
 	h.Name = getString(buffer)
-
 	// Headers
 	var headersSize uint32
 	binary.Read(buffer, binary.BigEndian, &headersSize)

@@ -1,9 +1,9 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"testing"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Yay! Test function.
@@ -41,8 +41,11 @@ func TestLeave(t *testing.T) {
 
 	// Create a Leave message and send it through the wire
 	leave := NewLeave()
+
 	leave.sequence = 123
+
 	leave.Group = "Life is short but Now lasts for ever"
+
 	leave.Status = 123
 
 	err = leave.Send(output)
@@ -55,12 +58,15 @@ func TestLeave(t *testing.T) {
 	}
 
 	tr := transit.(*Leave)
+
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
+
 	if tr.Group != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
 	}
+
 	if tr.Status != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.Status)
 	}
@@ -69,10 +75,12 @@ func TestLeave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err = Recv(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if routingId != string(tr.RoutingId()) {
 		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}

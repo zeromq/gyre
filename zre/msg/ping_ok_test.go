@@ -1,9 +1,9 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"testing"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Yay! Test function.
@@ -41,6 +41,7 @@ func TestPingOk(t *testing.T) {
 
 	// Create a Pingok message and send it through the wire
 	pingok := NewPingOk()
+
 	pingok.sequence = 123
 
 	err = pingok.Send(output)
@@ -53,6 +54,7 @@ func TestPingOk(t *testing.T) {
 	}
 
 	tr := transit.(*PingOk)
+
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
@@ -61,10 +63,12 @@ func TestPingOk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err = Recv(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if routingId != string(tr.RoutingId()) {
 		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
 	}

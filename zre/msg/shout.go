@@ -1,13 +1,13 @@
 package msg
 
 import (
-	zmq "github.com/pebbe/zmq4"
-
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 // Send a multi-part message to a group
@@ -50,6 +50,9 @@ func (s *Shout) Marshal() ([]byte, error) {
 	bufferSize++ // Size is one byte
 	bufferSize += len(s.Group)
 
+	// Content is a block of []byte with one byte length
+	bufferSize += 1 + len(s.Content)
+
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
@@ -66,6 +69,8 @@ func (s *Shout) Marshal() ([]byte, error) {
 
 	// Group
 	putString(buffer, s.Group)
+
+	putBytes(buffer, s.Content)
 
 	return buffer.Bytes(), nil
 }
@@ -94,23 +99,18 @@ func (s *Shout) Unmarshal(frames ...[]byte) error {
 	if id != ShoutId {
 		return errors.New("malformed Shout message")
 	}
-
 	// version
 	binary.Read(buffer, binary.BigEndian, &s.version)
 	if s.version != 2 {
 		return errors.New("malformed version message")
 	}
-
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &s.sequence)
-
 	// Group
 	s.Group = getString(buffer)
-
 	// Content
-	if 0 <= len(frames)-1 {
-		s.Content = frames[0]
-	}
+
+	s.Content = getBytes(buffer)
 
 	return nil
 }
