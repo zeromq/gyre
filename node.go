@@ -1,11 +1,6 @@
 package gyre
 
 import (
-	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/beacon"
-	"github.com/zeromq/gyre/zre/msg"
-	"net"
-
 	"bytes"
 	crand "crypto/rand"
 	"encoding/binary"
@@ -14,10 +9,15 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/beacon"
+	"github.com/zeromq/gyre/zre/msg"
 )
 
 type node struct {
@@ -294,7 +294,7 @@ func (n *node) recvFromApi(c *cmd) {
 		n.cmds <- &cmd{err: err}
 
 	case cmdStop, cmdTerm:
-		if n.terminate != nil {
+		if n.terminated != nil {
 			close(n.terminated)
 		}
 
