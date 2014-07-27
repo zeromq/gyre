@@ -60,10 +60,10 @@ type Beacon struct {
 	filter     []byte           // Beacon filter data
 	addr       string           // Our own address
 	iface      string
-	ticker     <-chan time.Time
 	wg         sync.WaitGroup
 	inAddr     *net.UDPAddr
 	outAddr    *net.UDPAddr
+	sync.Mutex
 }
 
 // Creates a new beacon on a certain UDP port.
@@ -205,10 +205,13 @@ func (b *Beacon) start() (err error) {
 
 // Terminates the beacon.
 func (b *Beacon) Close() {
+	b.Lock()
 	b.terminated = true
+
 	if b.signals != nil {
 		close(b.signals)
 	}
+	b.Unlock()
 
 	// Send a nil udp data to wake up listen()
 	if b.ipv4Conn != nil {
@@ -262,12 +265,9 @@ func (b *Beacon) NoEcho() *Beacon {
 
 // Publish starts broadcasting beacon to peers at the specified interval.
 func (b *Beacon) Publish(transmit []byte) error {
+	b.Lock()
+	defer b.Unlock()
 	b.transmit = transmit
-	if b.interval == 0 {
-		b.ticker = time.After(defaultInterval)
-	} else {
-		b.ticker = time.After(b.interval)
-	}
 
 	err := b.start()
 
@@ -276,6 +276,9 @@ func (b *Beacon) Publish(transmit []byte) error {
 
 // Silence stops broadcasting beacon.
 func (b *Beacon) Silence() *Beacon {
+	b.Lock()
+	defer b.Unlock()
+
 	b.transmit = nil
 	return b
 }
@@ -309,9 +312,14 @@ func (b *Beacon) listen() {
 
 	for {
 		buff := make([]byte, beaconMax)
+
+		b.Lock()
 		if b.terminated {
+			b.Unlock()
 			return
 		}
+		b.Unlock()
+
 		if b.ipv4Conn != nil {
 			var cm *ipv4.ControlMessage
 			n, cm, _, err = b.ipv4Conn.ReadFrom(buff)
@@ -346,10 +354,20 @@ func (b *Beacon) signal() {
 	b.wg.Add(1)
 	defer b.wg.Done()
 
+	var ticker <-chan time.Time
+
+	if b.interval == 0 {
+		ticker = time.After(defaultInterval)
+	} else {
+		ticker = time.After(b.interval)
+	}
+
 	for {
 		select {
-		case <-b.ticker:
+		case <-ticker:
+			b.Lock()
 			if b.terminated {
+				b.Unlock()
 				return
 			}
 			if b.transmit != nil {
@@ -360,7 +378,9 @@ func (b *Beacon) signal() {
 					b.ipv6Conn.WriteTo(b.transmit, nil, b.outAddr)
 				}
 			}
-			b.ticker = time.After(b.interval)
+			b.Unlock()
+
+			ticker = time.After(b.interval)
 		}
 	}
 }
