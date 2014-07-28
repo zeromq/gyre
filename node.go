@@ -731,13 +731,18 @@ func (n *node) pollInbox() {
 	poller := zmq.NewPoller()
 	poller.Add(n.inbox, zmq.POLLIN)
 
-	terminated := false
+	var (
+		mx         sync.Mutex // Protect terminated
+		terminated bool
+	)
 
 	// Wait for termination signal on a go routine
 	go func() {
 		select {
 		case <-n.terminated:
+			mx.Lock()
 			terminated = true
+			mx.Unlock()
 		}
 	}()
 
@@ -756,9 +761,13 @@ func (n *node) pollInbox() {
 				n.inboxChan <- t
 			}
 		}
+
+		mx.Lock()
 		if terminated {
 			// Received a termination signal kill the go routine
+			mx.Unlock()
 			return
 		}
+		mx.Unlock()
 	}
 }
