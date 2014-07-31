@@ -1,11 +1,6 @@
 package gyre
 
 import (
-	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/beacon"
-	"github.com/zeromq/gyre/zre/msg"
-	"net"
-
 	"bytes"
 	crand "crypto/rand"
 	"encoding/binary"
@@ -14,10 +9,15 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/beacon"
+	"github.com/zeromq/gyre/zre/msg"
 )
 
 type node struct {
@@ -294,7 +294,7 @@ func (n *node) recvFromApi(c *cmd) {
 		n.cmds <- &cmd{err: err}
 
 	case cmdStop, cmdTerm:
-		if n.terminate != nil {
+		if n.terminated != nil {
 			close(n.terminated)
 		}
 
@@ -731,13 +731,18 @@ func (n *node) pollInbox() {
 	poller := zmq.NewPoller()
 	poller.Add(n.inbox, zmq.POLLIN)
 
-	terminated := false
+	var (
+		mx         sync.Mutex // Protect terminated
+		terminated bool
+	)
 
 	// Wait for termination signal on a go routine
 	go func() {
 		select {
 		case <-n.terminated:
+			mx.Lock()
 			terminated = true
+			mx.Unlock()
 		}
 	}()
 
@@ -756,9 +761,13 @@ func (n *node) pollInbox() {
 				n.inboxChan <- t
 			}
 		}
+
+		mx.Lock()
 		if terminated {
 			// Received a termination signal kill the go routine
+			mx.Unlock()
 			return
 		}
+		mx.Unlock()
 	}
 }

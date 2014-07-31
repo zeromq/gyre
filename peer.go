@@ -1,11 +1,11 @@
 package gyre
 
 import (
-	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/zre/msg"
-
 	"fmt"
 	"time"
+
+	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/zre/msg"
 )
 
 var (

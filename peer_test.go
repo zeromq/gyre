@@ -1,13 +1,13 @@
 package gyre
 
 import (
-	zmq "github.com/pebbe/zmq4"
-	"github.com/zeromq/gyre/zre/msg"
-
 	"bytes"
 	crand "crypto/rand"
 	"io"
 	"testing"
+
+	zmq "github.com/pebbe/zmq4"
+	"github.com/zeromq/gyre/zre/msg"
 )
 
 func TestPeer(t *testing.T) {
