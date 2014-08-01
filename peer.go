@@ -2,6 +2,7 @@ package gyre
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	zmq "github.com/pebbe/zmq4"
@@ -9,6 +10,7 @@ import (
 )
 
 var (
+	optMx        sync.Mutex
 	peerEvasive  = 3 * time.Second // 3 seconds' silence is evasive
 	peerExpired  = 5 * time.Second // 5 seconds' silence is expired
 	reapInterval = 1 * time.Second // Once per second
@@ -70,7 +72,9 @@ func (p *peer) connect(from []byte, endpoint string) (err error) {
 	p.mailbox.SetIdentity(string(routingId))
 
 	// Set a high-water mark that allows for reasonable activity
+	optMx.Lock()
 	p.mailbox.SetSndhwm(int(peerExpired * time.Microsecond))
+	optMx.Unlock()
 
 	// Send messages immediately or return EAGAIN
 	p.mailbox.SetSndtimeo(0)
@@ -117,6 +121,9 @@ func (p *peer) send(t msg.Transit) (err error) {
 
 // refresh refreshes activity at peer
 func (p *peer) refresh() {
+	optMx.Lock()
+	defer optMx.Unlock()
+
 	p.evasiveAt = time.Now().Add(peerEvasive)
 	p.expiredAt = time.Now().Add(peerExpired)
 }
@@ -154,15 +161,24 @@ func (p *peer) Identity() string {
 
 // SetExpired sets expired.
 func SetExpired(expired time.Duration) {
+	optMx.Lock()
+	defer optMx.Unlock()
+
 	peerExpired = expired
 }
 
 // SetEvasive sets evasive.
 func SetEvasive(evasive time.Duration) {
+	optMx.Lock()
+	defer optMx.Unlock()
+
 	peerEvasive = evasive
 }
 
 // SetPingInterval sets interval of pinging other peers
 func SetPingInterval(interval time.Duration) {
+	optMx.Lock()
+	defer optMx.Unlock()
+
 	reapInterval = interval
 }

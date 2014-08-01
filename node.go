@@ -693,7 +693,9 @@ func (n *node) actor() {
 		n.wg.Done()
 	}()
 
+	optMx.Lock()
 	ping := time.After(reapInterval)
+	optMx.Unlock()
 
 	for {
 		select {
@@ -717,7 +719,10 @@ func (n *node) actor() {
 			if n.verbose && len(n.peers) == 0 {
 				log.Printf("[%s] There is no peer to ping", n.name)
 			}
+			optMx.Lock()
 			ping = time.After(reapInterval)
+			optMx.Unlock()
+
 			for _, peer := range n.peers {
 				n.pingPeer(peer)
 			}
