@@ -63,6 +63,10 @@ func TestNode(t *testing.T) {
 
 	gyre[0].Shout("GLOBAL", []byte("Hello, World!"))
 
+	if gyre[1].Addr() == "" {
+		t.Errorf("Addr() shouldn't return empty string")
+	}
+
 	select {
 	case event := <-gyre[1].Events():
 

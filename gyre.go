@@ -110,7 +110,8 @@ func (g *Gyre) Name() (name string) {
 	return g.name
 }
 
-// Return our address.
+// Return our address. Note that it will return empty string
+// if called before Start() method.
 func (g *Gyre) Addr() string {
 	if g.addr != "" {
 		return g.addr
