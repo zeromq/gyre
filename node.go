@@ -263,6 +263,9 @@ func (n *node) recvFromApi(c *cmd) {
 	case cmdName:
 		n.cmds <- &cmd{payload: n.name}
 
+	case cmdAddr:
+		n.cmds <- &cmd{payload: n.beacon.Addr()}
+
 	case cmdHeader:
 		header, ok := n.headers[c.key]
 
