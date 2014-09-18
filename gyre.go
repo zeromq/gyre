@@ -16,6 +16,7 @@ type Gyre struct {
 	events chan *Event // Receives incoming cluster events/traffic
 	uuid   string      // Copy of our uuid
 	name   string      // Copy of our name
+	addr   string      // Copy of our address
 }
 
 type cmd struct {
@@ -27,6 +28,7 @@ type cmd struct {
 
 const (
 	cmdName        = "NAME"
+	cmdAddr        = "ADDR"
 	cmdUuid        = "UUID"
 	cmdHeader      = "HEADER"
 	cmdHeaders     = "HEADERS"
@@ -106,6 +108,22 @@ func (g *Gyre) Name() (name string) {
 	}
 
 	return g.name
+}
+
+// Return our address. Note that it will return empty string
+// if called before Start() method.
+func (g *Gyre) Addr() string {
+	if g.addr != "" {
+		return g.addr
+	}
+
+	g.cmds <- &cmd{cmd: cmdAddr}
+	out := <-g.cmds
+	if addr, ok := out.payload.(string); ok {
+		g.addr = addr
+	}
+
+	return g.addr
 }
 
 // Return specified header
