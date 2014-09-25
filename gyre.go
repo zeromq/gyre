@@ -12,11 +12,12 @@ import (
 
 // Gyre structure
 type Gyre struct {
-	cmds   chan *cmd
-	events chan *Event // Receives incoming cluster events/traffic
-	uuid   string      // Copy of our uuid
-	name   string      // Copy of our name
-	addr   string      // Copy of our address
+	cmds    chan *cmd
+	events  chan *Event       // Receives incoming cluster events/traffic
+	uuid    string            // Copy of our uuid
+	name    string            // Copy of our name
+	addr    string            // Copy of our address
+	headers map[string]string // Headres cache
 }
 
 type cmd struct {
@@ -64,8 +65,9 @@ func newGyre() (*Gyre, *node, error) {
 		// The following channels are used in nodeActor() method which is heart of the Gyre
 		// if something blocks while sending to one of these channels, it'll cause pause in
 		// the system which isn't desired.
-		events: make(chan *Event, 10000), // Do not block on sending events
-		cmds:   make(chan *cmd),          // Shouldn't be a buffered channel because the main select acts as a lock
+		events:  make(chan *Event, 10000), // Do not block on sending events
+		cmds:    make(chan *cmd),          // Shouldn't be a buffered channel because the main select acts as a lock
+		headers: make(map[string]string),
 	}
 
 	n, err := newNode(g.events, g.cmds)
@@ -128,6 +130,11 @@ func (g *Gyre) Addr() string {
 
 // Return specified header
 func (g *Gyre) Header(key string) (header string, ok bool) {
+
+	if header, ok = g.headers[key]; ok {
+		return
+	}
+
 	g.cmds <- &cmd{cmd: cmdHeader, key: key}
 	out := <-g.cmds
 
@@ -136,6 +143,7 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	}
 
 	header, ok = out.payload.(string)
+	g.headers[key] = header
 	return header, ok
 }
 
