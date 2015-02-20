@@ -117,7 +117,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshals the message.
+// Unmarshal unmarshals the message.
 func (h *Hello) Unmarshal(frames ...[]byte) error {
 	if frames == nil {
 		return errors.New("Can't unmarshal empty message")
@@ -132,7 +132,7 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
-		return errors.New("invalid signature")
+		return fmt.Errorf("invalid signature %X != %X", Signature, signature)
 	}
 
 	// Get message id and parse per message type
@@ -172,7 +172,7 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Sends marshaled data through 0mq socket.
+// Send sends marshaled data through 0mq socket.
 func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	frame, err := h.Marshal()
 	if err != nil {

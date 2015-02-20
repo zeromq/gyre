@@ -59,7 +59,7 @@ func (p *PingOk) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// Unmarshals the message.
+// Unmarshal unmarshals the message.
 func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	if frames == nil {
 		return errors.New("Can't unmarshal empty message")
@@ -74,7 +74,7 @@ func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	var signature uint16
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
-		return errors.New("invalid signature")
+		return fmt.Errorf("invalid signature %X != %X", Signature, signature)
 	}
 
 	// Get message id and parse per message type
@@ -94,7 +94,7 @@ func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	return nil
 }
 
-// Sends marshaled data through 0mq socket.
+// Send sends marshaled data through 0mq socket.
 func (p *PingOk) Send(socket *zmq.Socket) (err error) {
 	frame, err := p.Marshal()
 	if err != nil {

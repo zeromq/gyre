@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	zmq "github.com/pebbe/zmq4"
 )
@@ -29,6 +30,7 @@ const (
 	PingOkId  uint8 = 7
 )
 
+// Transit is a codec interface
 type Transit interface {
 	Marshal() ([]byte, error)
 	Unmarshal(...[]byte) error
@@ -42,7 +44,7 @@ type Transit interface {
 	Sequence() uint16
 }
 
-// Unmarshals data from raw frames.
+// Unmarshal unmarshals data from raw frames.
 func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	if frames == nil {
 		return nil, errors.New("can't unmarshal an empty message")
@@ -55,7 +57,7 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	binary.Read(buffer, binary.BigEndian, &signature)
 	if signature != Signature {
 		// Invalid signature
-		return nil, errors.New("invalid signature")
+		return nil, fmt.Errorf("invalid signature %X != %X", Signature, signature)
 	}
 
 	// Get message id and parse per message type
@@ -83,17 +85,17 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	return t, err
 }
 
-// Receives marshaled data from 0mq socket.
+// Recv receives marshaled data from a 0mq socket.
 func Recv(socket *zmq.Socket) (t Transit, err error) {
 	return recv(socket, 0)
 }
 
-// Receives marshaled data from 0mq socket. It won't wait for input.
+// RecvNoWait receives marshaled data from 0mq socket. It won't wait for input.
 func RecvNoWait(socket *zmq.Socket) (t Transit, err error) {
 	return recv(socket, zmq.DONTWAIT)
 }
 
-// Receives marshaled data from 0mq socket.
+// recv receives marshaled data from 0mq socket.
 func recv(socket *zmq.Socket, flag zmq.Flag) (t Transit, err error) {
 	// Read all frames
 	frames, err := socket.RecvMessageBytes(flag)
@@ -127,7 +129,7 @@ func recv(socket *zmq.Socket, flag zmq.Flag) (t Transit, err error) {
 	return t, err
 }
 
-// Clones a message.
+// Clone clones a message.
 func Clone(t Transit) Transit {
 
 	switch msg := t.(type) {
