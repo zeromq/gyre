@@ -11,7 +11,6 @@ import (
 )
 
 var (
-	input   = make(chan string)
 	group   = flag.String("group", "*", "The group we are going to join. By default joins every group in the network. For multiple groups separate groups with comma.")
 	verbose = flag.Bool("verbose", true, "Set verbose flag")
 )
