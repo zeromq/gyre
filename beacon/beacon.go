@@ -42,11 +42,13 @@ var (
 	ipv6Group = "ff02::fa"
 )
 
+// Signal contains the body of the beacon (Transmit) and the source address
 type Signal struct {
 	Addr     string
 	Transmit []byte
 }
 
+// Beacon defines main structure of the application
 type Beacon struct {
 	signals    chan *Signal
 	ipv4Conn   *ipv4.PacketConn // UDP incoming connection for sending/receiving beacons
@@ -66,7 +68,7 @@ type Beacon struct {
 	sync.Mutex
 }
 
-// Creates a new beacon on a certain UDP port.
+// New creates a new beacon on a certain UDP port.
 func New() (b *Beacon) {
 
 	b = &Beacon{
@@ -208,7 +210,7 @@ func (b *Beacon) start() (err error) {
 	return nil
 }
 
-// Terminates the beacon.
+// Close terminates the beacon.
 func (b *Beacon) Close() {
 	b.Lock()
 	b.terminated = true
@@ -234,7 +236,7 @@ func (b *Beacon) Close() {
 	}
 }
 
-// Returns our own IP address as printable string
+// Addr returns our own IP address as printable string
 func (b *Beacon) Addr() string {
 	return b.addr
 }

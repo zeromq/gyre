@@ -1,4 +1,4 @@
-// Gyre is Golang port of Zyre, an open-source framework for proximity-based
+// Package gyre is Golang port of Zyre, an open-source framework for proximity-based
 // peer-to-peer applications.
 // Gyre does local area discovery and clustering. A Gyre node broadcasts
 // UDP beacons, and connects to peers that it finds. This class wraps a
@@ -30,7 +30,7 @@ type cmd struct {
 const (
 	cmdName        = "NAME"
 	cmdAddr        = "ADDR"
-	cmdUuid        = "UUID"
+	cmdUUID        = "UUID"
 	cmdHeader      = "HEADER"
 	cmdHeaders     = "HEADERS"
 	cmdSetName     = "SET NAME"
@@ -80,13 +80,13 @@ func newGyre() (*Gyre, *node, error) {
 	return g, n, nil
 }
 
-// Return our node UUID, after successful initialization
-func (g *Gyre) Uuid() (uuid string) {
+// UUID returns our node UUID, after successful initialization
+func (g *Gyre) UUID() (uuid string) {
 	if g.uuid != "" {
 		return g.uuid
 	}
 
-	g.cmds <- &cmd{cmd: cmdUuid}
+	g.cmds <- &cmd{cmd: cmdUUID}
 	out := <-g.cmds
 
 	if uuid, ok := out.payload.(string); ok {
@@ -96,7 +96,7 @@ func (g *Gyre) Uuid() (uuid string) {
 	return g.uuid
 }
 
-// Return our node name, after successful initialization.
+// Name returns our node name, after successful initialization.
 // By default is taken from the UUID and shortened.
 func (g *Gyre) Name() (name string) {
 	if g.name != "" {
@@ -112,7 +112,7 @@ func (g *Gyre) Name() (name string) {
 	return g.name
 }
 
-// Return our address. Note that it will return empty string
+// Addr returns our address. Note that it will return empty string
 // if called before Start() method.
 func (g *Gyre) Addr() string {
 	if g.addr != "" {
@@ -128,7 +128,7 @@ func (g *Gyre) Addr() string {
 	return g.addr
 }
 
-// Return specified header
+// Header returns specified header
 func (g *Gyre) Header(key string) (header string, ok bool) {
 
 	if header, ok = g.headers[key]; ok {
@@ -147,7 +147,7 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	return header, ok
 }
 
-// Return headers
+// Headers returns headers
 func (g *Gyre) Headers() map[string]string {
 	g.cmds <- &cmd{cmd: cmdHeaders}
 	out := <-g.cmds
@@ -159,7 +159,7 @@ func (g *Gyre) Headers() map[string]string {
 	return nil
 }
 
-// Set node name; this is provided to other nodes during discovery.
+// SetName sets node name; this is provided to other nodes during discovery.
 // If you do not set this, the UUID is used as a basis.
 func (g *Gyre) SetName(name string) *Gyre {
 	g.cmds <- &cmd{
@@ -170,7 +170,7 @@ func (g *Gyre) SetName(name string) *Gyre {
 	return g
 }
 
-// Set node header; these are provided to other nodes during discovery
+// SetHeader sets node header; these are provided to other nodes during discovery
 // and come in each ENTER message.
 func (g *Gyre) SetHeader(name string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
@@ -183,7 +183,7 @@ func (g *Gyre) SetHeader(name string, format string, args ...interface{}) *Gyre 
 	return g
 }
 
-// Set verbose mode; this tells the node to log all traffic as well
+// SetVerbose sets verbose mode; this tells the node to log all traffic as well
 // as all major events.
 func (g *Gyre) SetVerbose() *Gyre {
 	g.cmds <- &cmd{
@@ -194,7 +194,7 @@ func (g *Gyre) SetVerbose() *Gyre {
 	return g
 }
 
-// Set ZRE discovery port; defaults to 5670, this call overrides that
+// SetPort sets ZRE discovery port; defaults to 5670, this call overrides that
 // so you can create independent clusters on the same network, for e.g
 // development vs production.
 func (g *Gyre) SetPort(port int) *Gyre {
@@ -206,7 +206,7 @@ func (g *Gyre) SetPort(port int) *Gyre {
 	return g
 }
 
-// Set ZRE discovery interval. Default is instant beacon
+// SetInterval sets ZRE discovery interval. Default is instant beacon
 // exploration followed by pinging every 1,000 msecs.
 func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 	g.cmds <- &cmd{
@@ -217,7 +217,7 @@ func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 	return g
 }
 
-// Set network interface to use for beacons and interconnects. If you
+// SetInterface sets network interface to use for beacons and interconnects. If you
 // do not set this, Gyre will choose an interface for you. On boxes
 // with multiple interfaces you really should specify which one you
 // want to use, or strange things can happen.
@@ -230,7 +230,7 @@ func (g *Gyre) SetInterface(iface string) *Gyre {
 	return g
 }
 
-// Start node, after setting header values. When you start a node it
+// Start starts a node, after setting header values. When you start a node it
 // begins discovery and connection. Returns nil if OK, and error if
 // it wasn't possible to start the node.
 func (g *Gyre) Start() (err error) {
@@ -246,7 +246,7 @@ func (g *Gyre) Start() (err error) {
 	return nil
 }
 
-// Stop node; this signals to other peers that this node will go away.
+// Stop stops a node; this signals to other peers that this node will go away.
 // This is polite; however you can also just destroy the node without
 // stopping it.
 func (g *Gyre) Stop() {
@@ -275,13 +275,13 @@ func (g *Gyre) Leave(group string) *Gyre {
 	return g
 }
 
-// Returns a channel of events. The events may be a control
+// Events returns a channel of events. The events may be a control
 // event (ENTER, EXIT, JOIN, LEAVE) or data (WHISPER, SHOUT).
 func (g *Gyre) Events() chan *Event {
 	return g.events
 }
 
-// Send message to single peer, specified as a UUID string.
+// Whisper sends a message to single peer, specified as a UUID string.
 func (g *Gyre) Whisper(peer string, payload []byte) *Gyre {
 	g.cmds <- &cmd{
 		cmd:     cmdWhisper,
@@ -291,7 +291,7 @@ func (g *Gyre) Whisper(peer string, payload []byte) *Gyre {
 	return g
 }
 
-// Send message to a named group.
+// Shout sends a message to a named group.
 func (g *Gyre) Shout(group string, payload []byte) *Gyre {
 	g.cmds <- &cmd{
 		cmd:     cmdShout,
@@ -301,7 +301,7 @@ func (g *Gyre) Shout(group string, payload []byte) *Gyre {
 	return g
 }
 
-// Send formatted string to a single peer specified as UUID string.
+// Whispers sends a formatted string to a single peer specified as UUID string.
 func (g *Gyre) Whispers(peer string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
 	g.cmds <- &cmd{
@@ -312,7 +312,7 @@ func (g *Gyre) Whispers(peer string, format string, args ...interface{}) *Gyre {
 	return g
 }
 
-// Send message to a named group.
+// Shouts sends a message to a named group.
 func (g *Gyre) Shouts(group string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
 	g.cmds <- &cmd{
@@ -323,7 +323,7 @@ func (g *Gyre) Shouts(group string, format string, args ...interface{}) *Gyre {
 	return g
 }
 
-// Prints Gyre node information.
+// Dump prints Gyre node information.
 func (g *Gyre) Dump() *Gyre {
 	g.cmds <- &cmd{cmd: cmdDump}
 	return g

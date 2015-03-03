@@ -18,8 +18,8 @@ func TestPingOk(t *testing.T) {
 	}
 	defer output.Close()
 
-	routingId := "Shout"
-	output.SetIdentity(routingId)
+	routingID := "Shout"
+	output.SetIdentity(routingID)
 	err = output.Bind("inproc://selftest-pingok")
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestPingOk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if routingId != string(tr.RoutingId()) {
-		t.Fatalf("expected %s, got %s", routingId, string(tr.RoutingId()))
+	if routingID != string(tr.RoutingID()) {
+		t.Fatalf("expected %s, got %s", routingID, string(tr.RoutingID()))
 	}
 }

@@ -10,14 +10,15 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// PingOk struct
 // Reply to a peer's ping
 type PingOk struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 }
 
-// New creates new PingOk message.
+// NewPingOk creates new PingOk message.
 func NewPingOk() *PingOk {
 	pingok := &PingOk{}
 	return pingok
@@ -37,7 +38,7 @@ func (p *PingOk) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -47,7 +48,7 @@ func (p *PingOk) Marshal() ([]byte, error) {
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, PingOkId)
+	binary.Write(buffer, binary.BigEndian, PingOkID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -80,7 +81,7 @@ func (p *PingOk) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != PingOkId {
+	if id != PingOkID {
 		return errors.New("malformed PingOk message")
 	}
 	// version
@@ -106,9 +107,9 @@ func (p *PingOk) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(p.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(p.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -123,34 +124,34 @@ func (p *PingOk) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (p *PingOk) RoutingId() []byte {
-	return p.routingId
+func (p *PingOk) RoutingID() []byte {
+	return p.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (p *PingOk) SetRoutingId(routingId []byte) {
-	p.routingId = routingId
+func (p *PingOk) SetRoutingID(routingID []byte) {
+	p.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (p *PingOk) SetVersion(version byte) {
 	p.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (p *PingOk) Version() byte {
 	return p.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (p *PingOk) SetSequence(sequence uint16) {
 	p.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (p *PingOk) Sequence() uint16 {
 	return p.sequence
 }

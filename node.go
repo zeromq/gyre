@@ -48,12 +48,12 @@ type node struct {
 //
 // Z R E       3 bytes
 // Version     1 byte, %x01
-// Uuid        16 bytes
+// UUID        16 bytes
 // Port        2 bytes in network order
 type aBeacon struct {
 	Protocol [3]byte
 	Version  byte
-	Uuid     []byte
+	UUID     []byte
 	Port     uint16
 }
 
@@ -156,13 +156,13 @@ func (n *node) start() (err error) {
 		b.Protocol[1] = 'R'
 		b.Protocol[2] = 'E'
 		b.Version = beaconVersion
-		b.Uuid = n.uuid
+		b.UUID = n.uuid
 		b.Port = n.port
 
 		buffer := new(bytes.Buffer)
 		binary.Write(buffer, binary.BigEndian, b.Protocol)
 		binary.Write(buffer, binary.BigEndian, b.Version)
-		binary.Write(buffer, binary.BigEndian, b.Uuid)
+		binary.Write(buffer, binary.BigEndian, b.UUID)
 		binary.Write(buffer, binary.BigEndian, b.Port)
 
 		// Create a beacon
@@ -215,13 +215,13 @@ func (n *node) stop() {
 		b.Protocol[1] = 'R'
 		b.Protocol[2] = 'E'
 		b.Version = beaconVersion
-		b.Uuid = n.uuid
+		b.UUID = n.uuid
 		b.Port = 0 // Zero means we're stopping
 
 		buffer := new(bytes.Buffer)
 		binary.Write(buffer, binary.BigEndian, b.Protocol)
 		binary.Write(buffer, binary.BigEndian, b.Version)
-		binary.Write(buffer, binary.BigEndian, b.Uuid)
+		binary.Write(buffer, binary.BigEndian, b.UUID)
 		binary.Write(buffer, binary.BigEndian, b.Port)
 
 		n.beacon.Publish(buffer.Bytes())
@@ -231,8 +231,8 @@ func (n *node) stop() {
 	}
 }
 
-// recvFromApi handles a new command received from front-end
-func (n *node) recvFromApi(c *cmd) {
+// recvFromAPI handles a new command received from front-end
+func (n *node) recvFromAPI(c *cmd) {
 
 	if n.verbose {
 		log.Printf("[%s] Received a %q command from API", n.name, c.cmd)
@@ -257,7 +257,7 @@ func (n *node) recvFromApi(c *cmd) {
 	case cmdSetIface:
 		n.beacon.SetInterface(c.payload.(string))
 
-	case cmdUuid:
+	case cmdUUID:
 		n.cmds <- &cmd{payload: n.identity()}
 
 	case cmdName:
@@ -490,15 +490,15 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 		return
 	}
 
-	routingId := transit.RoutingId()
-	if len(routingId) < 1 {
+	routingID := transit.RoutingID()
+	if len(routingID) < 1 {
 		// Invalid routing id, ignore the peer
 		return
 	}
 
 	// Router socket tells us the identity of this peer
 	// Identity must be [1] followed by 16-byte UUID, ignore the [1]
-	identity := fmt.Sprintf("%X", routingId[1:])
+	identity := fmt.Sprintf("%X", routingID[1:])
 
 	peer := n.peers[identity]
 
@@ -625,14 +625,14 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 
 	uuid := make([]byte, 16)
 	binary.Read(buffer, binary.BigEndian, uuid)
-	b.Uuid = append(b.Uuid, uuid...)
+	b.UUID = append(b.UUID, uuid...)
 
 	binary.Read(buffer, binary.BigEndian, &b.Port)
 
 	// Ignore anything that isn't a valid beacon
 	if b.Version == beaconVersion {
 		// Check that the peer, identified by its UUID, exists
-		identity := fmt.Sprintf("%X", b.Uuid)
+		identity := fmt.Sprintf("%X", b.UUID)
 
 		if b.Port != 0 {
 			var endpoint string
@@ -679,12 +679,12 @@ func (n *node) pingPeer(peer *peer) {
 // Terminate leaves all the groups and the closes all the connections to the peers
 func (n *node) terminate() {
 	// Disconnect from all peers
-	for peerId, peer := range n.peers {
+	for peerID, peer := range n.peers {
 		// It's really important to disconnect from the peer before
 		// deleting it, unless we'd end up difficulties to reconnect
 		// to the same endpoint
 		peer.disconnect()
-		delete(n.peers, peerId)
+		delete(n.peers, peerID)
 	}
 	// Now it's safe to close the socket
 	n.inbox.Unbind(fmt.Sprintf("tcp://*:%d", n.port))
@@ -710,7 +710,7 @@ func (n *node) actor() {
 
 		case c := <-n.cmds:
 			// Received a command from the caller/API
-			n.recvFromApi(c)
+			n.recvFromAPI(c)
 
 		case transit := <-n.inboxChan:
 			n.recvFromPeer(transit)

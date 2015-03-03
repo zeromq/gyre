@@ -10,9 +10,10 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Hello struct
 // Greet a peer so it can connect back to us
 type Hello struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 	Endpoint  string
@@ -22,7 +23,7 @@ type Hello struct {
 	Headers   map[string]string
 }
 
-// New creates new Hello message.
+// NewHello creates new Hello message.
 func NewHello() *Hello {
 	hello := &Hello{}
 	hello.Headers = make(map[string]string)
@@ -48,7 +49,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -65,7 +66,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	}
 
 	// Status is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// Name is a string with 1-byte length
 	bufferSize++ // Size is one byte
@@ -83,7 +84,7 @@ func (h *Hello) Marshal() ([]byte, error) {
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, HelloId)
+	binary.Write(buffer, binary.BigEndian, HelloID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -138,7 +139,7 @@ func (h *Hello) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != HelloId {
+	if id != HelloID {
 		return errors.New("malformed Hello message")
 	}
 	// version
@@ -184,9 +185,9 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(h.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(h.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -201,34 +202,34 @@ func (h *Hello) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (h *Hello) RoutingId() []byte {
-	return h.routingId
+func (h *Hello) RoutingID() []byte {
+	return h.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (h *Hello) SetRoutingId(routingId []byte) {
-	h.routingId = routingId
+func (h *Hello) SetRoutingID(routingID []byte) {
+	h.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (h *Hello) SetVersion(version byte) {
 	h.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (h *Hello) Version() byte {
 	return h.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (h *Hello) SetSequence(sequence uint16) {
 	h.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (h *Hello) Sequence() uint16 {
 	return h.sequence
 }

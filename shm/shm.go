@@ -17,7 +17,7 @@ type kvs map[string]string
 
 type subtree map[string]*node
 
-// HashMap stores all the subtrees.
+// Map stores all the subtrees.
 type Map map[string]subtree
 
 var mx sync.RWMutex

@@ -10,15 +10,16 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Whisper struct
 // Send a multi-part message to a peer
 type Whisper struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 	Content   []byte
 }
 
-// New creates new Whisper message.
+// NewWhisper creates new Whisper message.
 func NewWhisper() *Whisper {
 	whisper := &Whisper{}
 	return whisper
@@ -39,7 +40,7 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -52,7 +53,7 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, WhisperId)
+	binary.Write(buffer, binary.BigEndian, WhisperID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -87,7 +88,7 @@ func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != WhisperId {
+	if id != WhisperID {
 		return errors.New("malformed Whisper message")
 	}
 	// version
@@ -116,9 +117,9 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(w.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(w.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -135,34 +136,34 @@ func (w *Whisper) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) RoutingId() []byte {
-	return w.routingId
+func (w *Whisper) RoutingID() []byte {
+	return w.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (w *Whisper) SetRoutingId(routingId []byte) {
-	w.routingId = routingId
+func (w *Whisper) SetRoutingID(routingID []byte) {
+	w.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (w *Whisper) SetVersion(version byte) {
 	w.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (w *Whisper) Version() byte {
 	return w.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (w *Whisper) SetSequence(sequence uint16) {
 	w.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (w *Whisper) Sequence() uint16 {
 	return w.sequence
 }

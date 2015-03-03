@@ -10,16 +10,17 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Shout struct
 // Send a multi-part message to a group
 type Shout struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 	Group     string
 	Content   []byte
 }
 
-// New creates new Shout message.
+// NewShout creates new Shout message.
 func NewShout() *Shout {
 	shout := &Shout{}
 	return shout
@@ -41,7 +42,7 @@ func (s *Shout) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -58,7 +59,7 @@ func (s *Shout) Marshal() ([]byte, error) {
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, ShoutId)
+	binary.Write(buffer, binary.BigEndian, ShoutID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -96,7 +97,7 @@ func (s *Shout) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != ShoutId {
+	if id != ShoutID {
 		return errors.New("malformed Shout message")
 	}
 	// version
@@ -127,9 +128,9 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(s.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(s.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -146,34 +147,34 @@ func (s *Shout) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (s *Shout) RoutingId() []byte {
-	return s.routingId
+func (s *Shout) RoutingID() []byte {
+	return s.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (s *Shout) SetRoutingId(routingId []byte) {
-	s.routingId = routingId
+func (s *Shout) SetRoutingID(routingID []byte) {
+	s.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (s *Shout) SetVersion(version byte) {
 	s.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (s *Shout) Version() byte {
 	return s.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (s *Shout) SetSequence(sequence uint16) {
 	s.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (s *Shout) Sequence() uint16 {
 	return s.sequence
 }
