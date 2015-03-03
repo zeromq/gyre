@@ -135,6 +135,11 @@ func (b *Beacon) start() (err error) {
 			if err != nil {
 				return err
 			}
+
+			if len(addrs) <= 0 {
+				return errors.New("no address to bind to")
+			}
+
 			ip, ipnet, err := net.ParseCIDR(addrs[0].String())
 			if err != nil {
 				return err
