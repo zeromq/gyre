@@ -6,8 +6,14 @@
 package gyre
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"time"
+)
+
+const (
+	timeout = 5 * time.Second
 )
 
 // Gyre structure
@@ -86,11 +92,19 @@ func (g *Gyre) UUID() (uuid string) {
 		return g.uuid
 	}
 
-	g.cmds <- &cmd{cmd: cmdUUID}
-	out := <-g.cmds
+	select {
+	case g.cmds <- &cmd{cmd: cmdUUID}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
 
-	if uuid, ok := out.payload.(string); ok {
-		g.uuid = uuid
+	select {
+	case out := <-g.cmds:
+		if uuid, ok := out.payload.(string); ok {
+			g.uuid = uuid
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g.uuid
@@ -103,10 +117,19 @@ func (g *Gyre) Name() (name string) {
 		return g.name
 	}
 
-	g.cmds <- &cmd{cmd: cmdName}
-	out := <-g.cmds
-	if name, ok := out.payload.(string); ok {
-		g.name = name
+	select {
+	case g.cmds <- &cmd{cmd: cmdName}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case out := <-g.cmds:
+		if name, ok := out.payload.(string); ok {
+			g.name = name
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g.name
@@ -119,10 +142,19 @@ func (g *Gyre) Addr() string {
 		return g.addr
 	}
 
-	g.cmds <- &cmd{cmd: cmdAddr}
-	out := <-g.cmds
-	if addr, ok := out.payload.(string); ok {
-		g.addr = addr
+	select {
+	case g.cmds <- &cmd{cmd: cmdAddr}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case out := <-g.cmds:
+		if addr, ok := out.payload.(string); ok {
+			g.addr = addr
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g.addr
@@ -135,25 +167,43 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 		return
 	}
 
-	g.cmds <- &cmd{cmd: cmdHeader, key: key}
-	out := <-g.cmds
-
-	if out.err != nil {
-		return
+	select {
+	case g.cmds <- &cmd{cmd: cmdHeader, key: key}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
-	header, ok = out.payload.(string)
-	g.headers[key] = header
+	select {
+	case out := <-g.cmds:
+		if out.err != nil {
+			return
+		}
+
+		header, ok = out.payload.(string)
+		g.headers[key] = header
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
 	return header, ok
 }
 
 // Headers returns headers
 func (g *Gyre) Headers() map[string]string {
-	g.cmds <- &cmd{cmd: cmdHeaders}
-	out := <-g.cmds
 
-	if headers, ok := out.payload.(map[string]string); ok {
-		return headers
+	select {
+	case g.cmds <- &cmd{cmd: cmdHeaders}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case out := <-g.cmds:
+		if headers, ok := out.payload.(map[string]string); ok {
+			return headers
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return nil
@@ -162,9 +212,11 @@ func (g *Gyre) Headers() map[string]string {
 // SetName sets node name; this is provided to other nodes during discovery.
 // If you do not set this, the UUID is used as a basis.
 func (g *Gyre) SetName(name string) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdSetName,
-		payload: name,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetName, payload: name}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -174,10 +226,11 @@ func (g *Gyre) SetName(name string) *Gyre {
 // and come in each ENTER message.
 func (g *Gyre) SetHeader(name string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
-	g.cmds <- &cmd{
-		cmd:     cmdSetHeader,
-		key:     name,
-		payload: payload,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetHeader, key: name, payload: payload}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -186,9 +239,11 @@ func (g *Gyre) SetHeader(name string, format string, args ...interface{}) *Gyre 
 // SetVerbose sets verbose mode; this tells the node to log all traffic as well
 // as all major events.
 func (g *Gyre) SetVerbose() *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdSetVerbose,
-		payload: true,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetVerbose, payload: true}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -198,9 +253,11 @@ func (g *Gyre) SetVerbose() *Gyre {
 // so you can create independent clusters on the same network, for e.g
 // development vs production.
 func (g *Gyre) SetPort(port int) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdSetPort,
-		payload: port,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetPort, payload: port}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -209,9 +266,11 @@ func (g *Gyre) SetPort(port int) *Gyre {
 // SetInterval sets ZRE discovery interval. Default is instant beacon
 // exploration followed by pinging every 1,000 msecs.
 func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdSetInterval,
-		payload: interval,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetInterval, payload: interval}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -222,9 +281,10 @@ func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 // with multiple interfaces you really should specify which one you
 // want to use, or strange things can happen.
 func (g *Gyre) SetInterface(iface string) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdSetIface,
-		payload: iface,
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetIface, payload: iface}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 
 	return g
@@ -234,13 +294,19 @@ func (g *Gyre) SetInterface(iface string) *Gyre {
 // begins discovery and connection. Returns nil if OK, and error if
 // it wasn't possible to start the node.
 func (g *Gyre) Start() (err error) {
-	g.cmds <- &cmd{
-		cmd: cmdStart,
+	select {
+	case g.cmds <- &cmd{cmd: cmdStart}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
-	out := <-g.cmds
 
-	if out.err != nil {
-		return out.err
+	select {
+	case out := <-g.cmds:
+		if out.err != nil {
+			return out.err
+		}
+	case <-time.After(timeout):
+		return errors.New("Node is not responding")
 	}
 
 	return nil
@@ -250,27 +316,37 @@ func (g *Gyre) Start() (err error) {
 // This is polite; however you can also just destroy the node without
 // stopping it.
 func (g *Gyre) Stop() {
-	g.cmds <- &cmd{
-		cmd: cmdStop,
+
+	select {
+	case g.cmds <- &cmd{cmd: cmdStop}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
-	<-g.cmds
+
+	select {
+	case <-g.cmds:
+	case <-time.After(20 * time.Millisecond):
+		// Let it timeout, don't wait forever
+	}
 }
 
 // Join a named group; after joining a group you can send messages to
 // the group and all Gyre nodes in that group will receive them.
 func (g *Gyre) Join(group string) *Gyre {
-	g.cmds <- &cmd{
-		cmd: cmdJoin,
-		key: group,
+	select {
+	case g.cmds <- &cmd{cmd: cmdJoin, key: group}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
 
 // Leave a group.
 func (g *Gyre) Leave(group string) *Gyre {
-	g.cmds <- &cmd{
-		cmd: cmdLeave,
-		key: group,
+	select {
+	case g.cmds <- &cmd{cmd: cmdLeave, key: group}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
@@ -283,20 +359,20 @@ func (g *Gyre) Events() chan *Event {
 
 // Whisper sends a message to single peer, specified as a UUID string.
 func (g *Gyre) Whisper(peer string, payload []byte) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdWhisper,
-		key:     peer,
-		payload: payload,
+	select {
+	case g.cmds <- &cmd{cmd: cmdWhisper, key: peer, payload: payload}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
 
 // Shout sends a message to a named group.
 func (g *Gyre) Shout(group string, payload []byte) *Gyre {
-	g.cmds <- &cmd{
-		cmd:     cmdShout,
-		key:     group,
-		payload: payload,
+	select {
+	case g.cmds <- &cmd{cmd: cmdShout, key: group, payload: payload}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
@@ -304,10 +380,10 @@ func (g *Gyre) Shout(group string, payload []byte) *Gyre {
 // Whispers sends a formatted string to a single peer specified as UUID string.
 func (g *Gyre) Whispers(peer string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
-	g.cmds <- &cmd{
-		cmd:     cmdWhisper,
-		key:     peer,
-		payload: []byte(payload),
+	select {
+	case g.cmds <- &cmd{cmd: cmdWhisper, key: peer, payload: []byte(payload)}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
@@ -315,16 +391,20 @@ func (g *Gyre) Whispers(peer string, format string, args ...interface{}) *Gyre {
 // Shouts sends a message to a named group.
 func (g *Gyre) Shouts(group string, format string, args ...interface{}) *Gyre {
 	payload := fmt.Sprintf(format, args...)
-	g.cmds <- &cmd{
-		cmd:     cmdShout,
-		key:     group,
-		payload: []byte(payload),
+	select {
+	case g.cmds <- &cmd{cmd: cmdShout, key: group, payload: []byte(payload)}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
 	}
 	return g
 }
 
 // Dump prints Gyre node information.
 func (g *Gyre) Dump() *Gyre {
-	g.cmds <- &cmd{cmd: cmdDump}
+	select {
+	case g.cmds <- &cmd{cmd: cmdDump}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
 	return g
 }
