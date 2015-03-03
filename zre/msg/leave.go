@@ -10,16 +10,17 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Leave struct
 // Leave a group
 type Leave struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 	Group     string
 	Status    byte
 }
 
-// New creates new Leave message.
+// NewLeave creates new Leave message.
 func NewLeave() *Leave {
 	leave := &Leave{}
 	return leave
@@ -41,7 +42,7 @@ func (l *Leave) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -51,14 +52,14 @@ func (l *Leave) Marshal() ([]byte, error) {
 	bufferSize += len(l.Group)
 
 	// Status is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, LeaveId)
+	binary.Write(buffer, binary.BigEndian, LeaveID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -97,7 +98,7 @@ func (l *Leave) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != LeaveId {
+	if id != LeaveID {
 		return errors.New("malformed Leave message")
 	}
 	// version
@@ -127,9 +128,9 @@ func (l *Leave) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(l.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(l.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -144,34 +145,34 @@ func (l *Leave) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (l *Leave) RoutingId() []byte {
-	return l.routingId
+func (l *Leave) RoutingID() []byte {
+	return l.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (l *Leave) SetRoutingId(routingId []byte) {
-	l.routingId = routingId
+func (l *Leave) SetRoutingID(routingID []byte) {
+	l.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (l *Leave) SetVersion(version byte) {
 	l.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (l *Leave) Version() byte {
 	return l.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (l *Leave) SetSequence(sequence uint16) {
 	l.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (l *Leave) Sequence() uint16 {
 	return l.sequence
 }

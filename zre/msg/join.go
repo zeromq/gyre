@@ -10,16 +10,17 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+// Join struct
 // Join a group
 type Join struct {
-	routingId []byte
+	routingID []byte
 	version   byte
 	sequence  uint16
 	Group     string
 	Status    byte
 }
 
-// New creates new Join message.
+// NewJoin creates new Join message.
 func NewJoin() *Join {
 	join := &Join{}
 	return join
@@ -41,7 +42,7 @@ func (j *Join) Marshal() ([]byte, error) {
 	bufferSize := 2 + 1 // Signature and message ID
 
 	// version is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// sequence is a 2-byte integer
 	bufferSize += 2
@@ -51,14 +52,14 @@ func (j *Join) Marshal() ([]byte, error) {
 	bufferSize += len(j.Group)
 
 	// Status is a 1-byte integer
-	bufferSize += 1
+	bufferSize++
 
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
 	buffer := bytes.NewBuffer(tmpBuf)
 	binary.Write(buffer, binary.BigEndian, Signature)
-	binary.Write(buffer, binary.BigEndian, JoinId)
+	binary.Write(buffer, binary.BigEndian, JoinID)
 
 	// version
 	value, _ := strconv.ParseUint("2", 10, 1*8)
@@ -97,7 +98,7 @@ func (j *Join) Unmarshal(frames ...[]byte) error {
 	// Get message id and parse per message type
 	var id uint8
 	binary.Read(buffer, binary.BigEndian, &id)
-	if id != JoinId {
+	if id != JoinID {
 		return errors.New("malformed Join message")
 	}
 	// version
@@ -127,9 +128,9 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 		return err
 	}
 
-	// If we're sending to a ROUTER, we send the routingId first
+	// If we're sending to a ROUTER, we send the routingID first
 	if socType == zmq.ROUTER {
-		_, err = socket.SendBytes(j.routingId, zmq.SNDMORE)
+		_, err = socket.SendBytes(j.routingID, zmq.SNDMORE)
 		if err != nil {
 			return err
 		}
@@ -144,34 +145,34 @@ func (j *Join) Send(socket *zmq.Socket) (err error) {
 	return err
 }
 
-// RoutingId returns the routingId for this message, routingId should be set
+// RoutingID returns the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (j *Join) RoutingId() []byte {
-	return j.routingId
+func (j *Join) RoutingID() []byte {
+	return j.routingID
 }
 
-// SetRoutingId sets the routingId for this message, routingId should be set
+// SetRoutingID sets the routingID for this message, routingID should be set
 // whenever talking to a ROUTER.
-func (j *Join) SetRoutingId(routingId []byte) {
-	j.routingId = routingId
+func (j *Join) SetRoutingID(routingID []byte) {
+	j.routingID = routingID
 }
 
-// Setversion sets the version.
+// SetVersion sets the version.
 func (j *Join) SetVersion(version byte) {
 	j.version = version
 }
 
-// version returns the version.
+// Version returns the version.
 func (j *Join) Version() byte {
 	return j.version
 }
 
-// Setsequence sets the sequence.
+// SetSequence sets the sequence.
 func (j *Join) SetSequence(sequence uint16) {
 	j.sequence = sequence
 }
 
-// sequence returns the sequence.
+// Sequence returns the sequence.
 func (j *Join) Sequence() uint16 {
 	return j.sequence
 }

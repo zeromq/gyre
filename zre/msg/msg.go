@@ -17,17 +17,21 @@ import (
 )
 
 const (
+	// Signature is put into every protocol message and lets us filter bogus
+	// or unknown protocols. It is a 4-bit number from 0 to 15. Use a unique value
+	// for each protocol you write, at least.
 	Signature uint16 = 0xAAA0 | 0
 )
 
+// Definition of message IDs
 const (
-	HelloId   uint8 = 1
-	WhisperId uint8 = 2
-	ShoutId   uint8 = 3
-	JoinId    uint8 = 4
-	LeaveId   uint8 = 5
-	PingId    uint8 = 6
-	PingOkId  uint8 = 7
+	HelloID   uint8 = 1
+	WhisperID uint8 = 2
+	ShoutID   uint8 = 3
+	JoinID    uint8 = 4
+	LeaveID   uint8 = 5
+	PingID    uint8 = 6
+	PingOkID  uint8 = 7
 )
 
 // Transit is a codec interface
@@ -36,8 +40,8 @@ type Transit interface {
 	Unmarshal(...[]byte) error
 	String() string
 	Send(*zmq.Socket) error
-	SetRoutingId([]byte)
-	RoutingId() []byte
+	SetRoutingID([]byte)
+	RoutingID() []byte
 	SetVersion(byte)
 	Version() byte
 	SetSequence(uint16)
@@ -65,19 +69,19 @@ func Unmarshal(frames ...[]byte) (t Transit, err error) {
 	binary.Read(buffer, binary.BigEndian, &id)
 
 	switch id {
-	case HelloId:
+	case HelloID:
 		t = NewHello()
-	case WhisperId:
+	case WhisperID:
 		t = NewWhisper()
-	case ShoutId:
+	case ShoutID:
 		t = NewShout()
-	case JoinId:
+	case JoinID:
 		t = NewJoin()
-	case LeaveId:
+	case LeaveID:
 		t = NewLeave()
-	case PingId:
+	case PingID:
 		t = NewPing()
-	case PingOkId:
+	case PingOkID:
 		t = NewPingOk()
 	}
 	err = t.Unmarshal(frames...)
@@ -108,13 +112,13 @@ func recv(socket *zmq.Socket, flag zmq.Flag) (t Transit, err error) {
 		return nil, err
 	}
 
-	var routingId []byte
-	// If message came from a router socket, first frame is routingId
+	var routingID []byte
+	// If message came from a router socket, first frame is routingID
 	if sType == zmq.ROUTER {
 		if len(frames) <= 1 {
-			return nil, errors.New("no routingId")
+			return nil, errors.New("no routingID")
 		}
-		routingId = frames[0]
+		routingID = frames[0]
 		frames = frames[1:]
 	}
 
@@ -124,7 +128,7 @@ func recv(socket *zmq.Socket, flag zmq.Flag) (t Transit, err error) {
 	}
 
 	if sType == zmq.ROUTER {
-		t.SetRoutingId(routingId)
+		t.SetRoutingID(routingID)
 	}
 	return t, err
 }
@@ -135,9 +139,9 @@ func Clone(t Transit) Transit {
 	switch msg := t.(type) {
 	case *Hello:
 		cloned := NewHello()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Endpoint = msg.Endpoint
@@ -153,9 +157,9 @@ func Clone(t Transit) Transit {
 
 	case *Whisper:
 		cloned := NewWhisper()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Content = append(cloned.Content, msg.Content...)
@@ -163,9 +167,9 @@ func Clone(t Transit) Transit {
 
 	case *Shout:
 		cloned := NewShout()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
@@ -174,9 +178,9 @@ func Clone(t Transit) Transit {
 
 	case *Join:
 		cloned := NewJoin()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
@@ -185,9 +189,9 @@ func Clone(t Transit) Transit {
 
 	case *Leave:
 		cloned := NewLeave()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		cloned.Group = msg.Group
@@ -196,18 +200,18 @@ func Clone(t Transit) Transit {
 
 	case *Ping:
 		cloned := NewPing()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		return cloned
 
 	case *PingOk:
 		cloned := NewPingOk()
-		routingId := make([]byte, len(msg.RoutingId()))
-		copy(routingId, msg.RoutingId())
-		cloned.SetRoutingId(routingId)
+		routingID := make([]byte, len(msg.RoutingID()))
+		copy(routingID, msg.RoutingID())
+		cloned.SetRoutingID(routingID)
 		cloned.version = msg.version
 		cloned.sequence = msg.sequence
 		return cloned
