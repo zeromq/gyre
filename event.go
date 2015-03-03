@@ -1,7 +1,9 @@
 package gyre
 
+// EventType defines event type
 type EventType int
 
+// Event types
 const (
 	EventEnter EventType = iota + 1
 	EventJoin
@@ -11,7 +13,7 @@ const (
 	EventShout
 )
 
-// Converts EventType to string
+// Converts EventType to string.
 func (e EventType) String() string {
 	switch e {
 	case EventEnter:
@@ -31,6 +33,8 @@ func (e EventType) String() string {
 	return ""
 }
 
+// Event represents an event which contains information about the sender and the
+// group it belongs.
 type Event struct {
 	eventType EventType         // Event type
 	sender    string            // Sender UUID as string
@@ -41,44 +45,44 @@ type Event struct {
 	msg       []byte            // Message payload for SHOUT or WHISPER
 }
 
-// Returns event type, which is a EventType.
+// Type returns event type, which is a EventType.
 func (e *Event) Type() EventType {
 	return e.eventType
 }
 
-// Returns the sending peer's id as a string.
+// Sender returns the sending peer's id as a string.
 func (e *Event) Sender() string {
 	return e.sender
 }
 
-// Returns the sending peer's public name as a string.
+// Name returns the sending peer's public name as a string.
 func (e *Event) Name() string {
 	return e.name
 }
 
-// Returns the sending peer's ipaddress as a string.
+// Addr returns the sending peer's ipaddress as a string.
 func (e *Event) Addr() string {
 	return e.address
 }
 
-// Returns the event headers, or nil if there are none
+// Headers returns the event headers, or nil if there are none
 func (e *Event) Headers() map[string]string {
 	return e.headers
 }
 
-// Returns value of a header from the message headers
+// Header returns value of a header from the message headers
 // obtained by ENTER.
 func (e *Event) Header(name string) (value string, ok bool) {
 	value, ok = e.headers[name]
 	return
 }
 
-// Returns the group name that a SHOUT event was sent to.
+// Group returns the group name that a SHOUT event was sent to.
 func (e *Event) Group() string {
 	return e.group
 }
 
-// Returns the incoming message payload (currently one frame).
+// Msg returns the incoming message payload (currently one frame).
 func (e *Event) Msg() []byte {
 	return e.msg
 }

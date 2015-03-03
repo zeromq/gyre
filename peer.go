@@ -68,8 +68,8 @@ func (p *peer) connect(from []byte, endpoint string) (err error) {
 	// zero byte at the start, which libzmq does not like for
 	// historical and arguably bogus reasons that it nonetheless
 	// enforces.
-	routingId := append([]byte{1}, from...)
-	p.mailbox.SetIdentity(string(routingId))
+	routingID := append([]byte{1}, from...)
+	p.mailbox.SetIdentity(string(routingID))
 
 	// Set a high-water mark that allows for reasonable activity
 	optMx.Lock()
