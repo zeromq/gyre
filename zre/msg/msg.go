@@ -20,7 +20,7 @@ const (
 	// Signature is put into every protocol message and lets us filter bogus
 	// or unknown protocols. It is a 4-bit number from 0 to 15. Use a unique value
 	// for each protocol you write, at least.
-	Signature uint16 = 0xAAA0 | 0
+	Signature uint16 = 0xAAA0 | 1
 )
 
 // Definition of message IDs
