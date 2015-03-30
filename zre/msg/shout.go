@@ -51,9 +51,6 @@ func (s *Shout) Marshal() ([]byte, error) {
 	bufferSize++ // Size is one byte
 	bufferSize += len(s.Group)
 
-	// Content is a block of []byte with one byte length
-	bufferSize += 1 + len(s.Content)
-
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
@@ -70,8 +67,6 @@ func (s *Shout) Marshal() ([]byte, error) {
 
 	// Group
 	putString(buffer, s.Group)
-
-	putBytes(buffer, s.Content)
 
 	return buffer.Bytes(), nil
 }
@@ -110,8 +105,9 @@ func (s *Shout) Unmarshal(frames ...[]byte) error {
 	// Group
 	s.Group = getString(buffer)
 	// Content
-
-	s.Content = getBytes(buffer)
+	if 0 <= len(frames)-1 {
+		s.Content = frames[0]
+	}
 
 	return nil
 }

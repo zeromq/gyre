@@ -41,13 +41,13 @@ func TestPing(t *testing.T) {
 
 	// Create a Ping message and send it through the wire
 	ping := NewPing()
-
 	ping.sequence = 123
 
 	err = ping.Send(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
@@ -55,10 +55,10 @@ func TestPing(t *testing.T) {
 
 	tr := transit.(*Ping)
 
+	// Tests number
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
-
 	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)

@@ -45,9 +45,6 @@ func (w *Whisper) Marshal() ([]byte, error) {
 	// sequence is a 2-byte integer
 	bufferSize += 2
 
-	// Content is a block of []byte with one byte length
-	bufferSize += 1 + len(w.Content)
-
 	// Now serialize the message
 	tmpBuf := make([]byte, bufferSize)
 	tmpBuf = tmpBuf[:0]
@@ -61,8 +58,6 @@ func (w *Whisper) Marshal() ([]byte, error) {
 
 	// sequence
 	binary.Write(buffer, binary.BigEndian, w.sequence)
-
-	putBytes(buffer, w.Content)
 
 	return buffer.Bytes(), nil
 }
@@ -99,8 +94,9 @@ func (w *Whisper) Unmarshal(frames ...[]byte) error {
 	// sequence
 	binary.Read(buffer, binary.BigEndian, &w.sequence)
 	// Content
-
-	w.Content = getBytes(buffer)
+	if 0 <= len(frames)-1 {
+		w.Content = frames[0]
+	}
 
 	return nil
 }

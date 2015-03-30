@@ -41,17 +41,15 @@ func TestJoin(t *testing.T) {
 
 	// Create a Join message and send it through the wire
 	join := NewJoin()
-
 	join.sequence = 123
-
 	join.Group = "Life is short but Now lasts for ever"
-
 	join.Status = 123
 
 	err = join.Send(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
@@ -59,18 +57,18 @@ func TestJoin(t *testing.T) {
 
 	tr := transit.(*Join)
 
+	// Tests number
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
-
+	// Tests string
 	if tr.Group != "Life is short but Now lasts for ever" {
 		t.Fatalf("expected %s, got %s", "Life is short but Now lasts for ever", tr.Group)
 	}
-
+	// Tests number
 	if tr.Status != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.Status)
 	}
-
 	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)
