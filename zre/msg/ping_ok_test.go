@@ -41,13 +41,13 @@ func TestPingOk(t *testing.T) {
 
 	// Create a Pingok message and send it through the wire
 	pingok := NewPingOk()
-
 	pingok.sequence = 123
 
 	err = pingok.Send(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
@@ -55,10 +55,10 @@ func TestPingOk(t *testing.T) {
 
 	tr := transit.(*PingOk)
 
+	// Tests number
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
-
 	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)

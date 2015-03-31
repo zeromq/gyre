@@ -2,6 +2,7 @@ package gyre
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"reflect"
 	"strconv"
@@ -10,18 +11,20 @@ import (
 )
 
 const (
-	numOfNodes = 5
+	numOfNodes = 3
 )
 
 var (
 	gyre    = make([]*Gyre, numOfNodes)
 	nodes   = make([]*node, numOfNodes)
 	headers = make([]map[string]string, numOfNodes)
+	id      int
 )
 
-func launchNodes(n int) {
+func launchNodes(n, port int, wait time.Duration) {
 
 	var err error
+	id++
 
 	for i := 0; i < n; i++ {
 		gyre[i], nodes[i], err = newGyre()
@@ -33,9 +36,20 @@ func launchNodes(n int) {
 		headers[i] = make(map[string]string)
 		headers[i]["X-HELLO-"+strconv.Itoa(i)] = "World-" + strconv.Itoa(i)
 		// You might want to make it verbose
-		gyre[i].SetVerbose()
-		gyre[i].SetPort(5660)
+		// gyre[i].SetVerbose()
+		// log.SetFlags(log.LstdFlags | log.Lshortfile)
+		gyre[i].SetPort(port)
 		gyre[i].SetInterface("lo")
+
+		if port == 0 {
+			// Enable the gossip
+			if i == 0 {
+				gyre[i].GossipBind(fmt.Sprintf("inproc://gossip-hub-%d", id))
+			} else {
+				gyre[i].GossipConnect(fmt.Sprintf("inproc://gossip-hub-%d", id))
+			}
+		}
+
 		err = gyre[i].Start()
 		if err != nil {
 			log.Fatal(err)
@@ -44,21 +58,36 @@ func launchNodes(n int) {
 	}
 
 	// Give time for them to interconnect
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(wait)
 }
 
 func stopNodes(n int) {
 	for i := 0; i < n; i++ {
 		gyre[i].Stop()
+		time.Sleep(100 * time.Millisecond)
 		gyre[i] = nil
 		nodes[i] = nil
-		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-func TestNode(t *testing.T) {
+func TestTwoNodes(t *testing.T) {
+	testTwoNodes(t, 5660, 1500*time.Millisecond)
+}
 
-	launchNodes(2)
+func TestTwoNodesWithGossipDiscovery(t *testing.T) {
+	testTwoNodes(t, 0, 1500*time.Millisecond) // Test with gossip discovery
+}
+
+func TestSyncedHeaders(t *testing.T) {
+	testSyncedHeaders(t, numOfNodes, 5660, 1500*time.Millisecond)
+}
+
+func TestSyncedHeadersWithGossipDiscovery(t *testing.T) {
+	testSyncedHeaders(t, numOfNodes, 0, 3000*time.Millisecond) // Test with gossip discovery
+}
+
+func testTwoNodes(t *testing.T, port int, wait time.Duration) {
+	launchNodes(2, port, wait)
 	defer stopNodes(2)
 
 	gyre[0].Shout("GLOBAL", []byte("Hello, World!"))
@@ -102,19 +131,19 @@ func TestNode(t *testing.T) {
 	}
 }
 
-func TestSyncedHeaders(t *testing.T) {
-	launchNodes(numOfNodes)
-	defer stopNodes(numOfNodes)
+func testSyncedHeaders(t *testing.T, n, port int, wait time.Duration) {
+	launchNodes(n, port, wait)
+	defer stopNodes(n)
 
-	for i := 0; i < numOfNodes; i++ {
+	for i := 0; i < n; i++ {
 		if !reflect.DeepEqual(gyre[i].Headers(), headers[i]) {
 			t.Errorf("expected %v got %v", headers[i], gyre[i].Headers())
 		}
 	}
 
 	// Make sure exchanged headers between peers are the consistent
-	for i := 0; i < numOfNodes; i++ {
-		for j := 0; j < numOfNodes; j++ {
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
 			if j == i {
 				continue
 			}

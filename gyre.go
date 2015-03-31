@@ -18,7 +18,7 @@ const (
 
 // Gyre structure
 type Gyre struct {
-	cmds    chan *cmd
+	cmds    chan interface{}
 	events  chan *Event       // Receives incoming cluster events/traffic
 	uuid    string            // Copy of our uuid
 	name    string            // Copy of our name
@@ -34,27 +34,30 @@ type cmd struct {
 }
 
 const (
-	cmdName        = "NAME"
-	cmdAddr        = "ADDR"
-	cmdUUID        = "UUID"
-	cmdHeader      = "HEADER"
-	cmdHeaders     = "HEADERS"
-	cmdSetName     = "SET NAME"
-	cmdSetHeader   = "SET HEADER"
-	cmdSetVerbose  = "SET VERBOSE"
-	cmdSetPort     = "SET PORT"
-	cmdSetInterval = "SET INTERVAL"
-	cmdSetIface    = "SET INTERFACE"
-	cmdStart       = "START"
-	cmdStop        = "STOP"
-	cmdJoin        = "JOIN"
-	cmdLeave       = "LEAVE"
-	cmdWhisper     = "WHISPER"
-	cmdShout       = "SHOUT"
-	cmdBind        = "BIND"
-	cmdConnect     = "CONNECT"
-	cmdDump        = "DUMP"
-	cmdTerm        = "$TERM"
+	cmdUUID          = "UUID"
+	cmdName          = "NAME"
+	cmdSetName       = "SET NAME"
+	cmdSetHeader     = "SET HEADER"
+	cmdSetVerbose    = "SET VERBOSE"
+	cmdSetPort       = "SET PORT"
+	cmdSetInterval   = "SET INTERVAL"
+	cmdSetIface      = "SET INTERFACE"
+	cmdSetEndpoint   = "SET ENDPOINT"
+	cmdGossipBind    = "GOSSIP BIND"
+	cmdGossipConnect = "GOSSIP CONNECT"
+	cmdStart         = "START"
+	cmdStop          = "STOP"
+	cmdWhisper       = "WHISPER"
+	cmdShout         = "SHOUT"
+	cmdJoin          = "JOIN"
+	cmdLeave         = "LEAVE"
+	cmdDump          = "DUMP"
+	cmdTerm          = "$TERM"
+
+	// Deprecated
+	cmdAddr    = "ADDR"
+	cmdHeader  = "HEADER"
+	cmdHeaders = "HEADERS"
 )
 
 // New creates a new Gyre node. Note that until you start the
@@ -72,7 +75,7 @@ func newGyre() (*Gyre, *node, error) {
 		// if something blocks while sending to one of these channels, it'll cause pause in
 		// the system which isn't desired.
 		events:  make(chan *Event, 10000), // Do not block on sending events
-		cmds:    make(chan *cmd),          // Shouldn't be a buffered channel because the main select acts as a lock
+		cmds:    make(chan interface{}),   // Shouldn't be a buffered channel because the main select acts as a lock
 		headers: make(map[string]string),
 	}
 
@@ -99,7 +102,8 @@ func (g *Gyre) UUID() (uuid string) {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if uuid, ok := out.payload.(string); ok {
 			g.uuid = uuid
 		}
@@ -124,7 +128,8 @@ func (g *Gyre) Name() (name string) {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if name, ok := out.payload.(string); ok {
 			g.name = name
 		}
@@ -149,7 +154,8 @@ func (g *Gyre) Addr() string {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if addr, ok := out.payload.(string); ok {
 			g.addr = addr
 		}
@@ -174,7 +180,8 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if out.err != nil {
 			return
 		}
@@ -198,7 +205,8 @@ func (g *Gyre) Headers() map[string]string {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if headers, ok := out.payload.(map[string]string); ok {
 			return headers
 		}
@@ -290,6 +298,81 @@ func (g *Gyre) SetInterface(iface string) *Gyre {
 	return g
 }
 
+// SetEndpoint sets the endpoint. By default, Gyre binds to an ephemeral TCP
+// port and broadcasts the local host name using UDP beaconing. When you call
+// this method, Gyre will use gossip discovery instead of UDP beaconing. You
+// MUST set-up the gossip service separately using GossipBind() and
+// GossipConnect(). Note that the endpoint MUST be valid for both bind and
+// connect operations. You can use inproc://, ipc://, or tcp:// transports
+// (for tcp://, use an IP address that is meaningful to remote as well as
+// local nodes).
+func (g *Gyre) SetEndpoint(endpoint string) *Gyre {
+	select {
+	case g.cmds <- &cmd{cmd: cmdSetEndpoint, payload: endpoint}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case c := <-g.cmds:
+		out := c.(*cmd)
+		if out.payload != nil {
+			log.Fatal(out.payload.(error))
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	return g
+}
+
+// GossipBind Sets up gossip discovery of other nodes. At least one node in
+// the cluster must bind to a well-known gossip endpoint, so other nodes
+// can connect to it. Note that gossip endpoints are completely distinct
+// from Gyre node endpoints, and should not overlap (they can use the same
+// transport).
+func (g *Gyre) GossipBind(endpoint string) *Gyre {
+	select {
+	case g.cmds <- &cmd{cmd: cmdGossipBind, payload: endpoint}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case c := <-g.cmds:
+		out := c.(*cmd)
+		if out.payload != nil {
+			log.Fatal(out.payload.(error))
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	return g
+}
+
+// GossipConnect Sets up gossip discovery of other nodes. A node may connect
+// to multiple other nodes, for redundancy paths.
+func (g *Gyre) GossipConnect(endpoint string) *Gyre {
+	select {
+	case g.cmds <- &cmd{cmd: cmdGossipConnect, payload: endpoint}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case c := <-g.cmds:
+		out := c.(*cmd)
+		if out.payload != nil {
+			log.Fatal(out.payload.(error))
+		}
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	return g
+}
+
 // Start starts a node, after setting header values. When you start a node it
 // begins discovery and connection. Returns nil if OK, and error if
 // it wasn't possible to start the node.
@@ -301,7 +384,8 @@ func (g *Gyre) Start() (err error) {
 	}
 
 	select {
-	case out := <-g.cmds:
+	case c := <-g.cmds:
+		out := c.(*cmd)
 		if out.err != nil {
 			return out.err
 		}

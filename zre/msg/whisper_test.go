@@ -41,15 +41,14 @@ func TestWhisper(t *testing.T) {
 
 	// Create a Whisper message and send it through the wire
 	whisper := NewWhisper()
-
 	whisper.sequence = 123
-
 	whisper.Content = []byte("Captcha Diem")
 
 	err = whisper.Send(output)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	transit, err := Recv(input)
 	if err != nil {
 		t.Fatal(err)
@@ -57,14 +56,14 @@ func TestWhisper(t *testing.T) {
 
 	tr := transit.(*Whisper)
 
+	// Tests number
 	if tr.sequence != 123 {
 		t.Fatalf("expected %d, got %d", 123, tr.sequence)
 	}
-
+	// Tests msg
 	if string(tr.Content) != "Captcha Diem" {
 		t.Fatalf("expected %s, got %s", "Captcha Diem", tr.Content)
 	}
-
 	err = tr.Send(input)
 	if err != nil {
 		t.Fatal(err)

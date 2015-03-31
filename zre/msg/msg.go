@@ -20,7 +20,7 @@ const (
 	// Signature is put into every protocol message and lets us filter bogus
 	// or unknown protocols. It is a 4-bit number from 0 to 15. Use a unique value
 	// for each protocol you write, at least.
-	Signature uint16 = 0xAAA0 | 0
+	Signature uint16 = 0xAAA0 | 1
 )
 
 // Definition of message IDs
@@ -254,14 +254,14 @@ func getLongString(buffer *bytes.Buffer) string {
 
 // putBytes marshals []byte into the buffer.
 func putBytes(buffer *bytes.Buffer, data []byte) {
-	size := uint64(len(data))
+	size := uint32(len(data))
 	binary.Write(buffer, binary.BigEndian, size)
 	binary.Write(buffer, binary.BigEndian, data)
 }
 
 // getBytes unmarshals []byte from the buffer.
 func getBytes(buffer *bytes.Buffer) []byte {
-	var size uint64
+	var size uint32
 	binary.Read(buffer, binary.BigEndian, &size)
 	data := make([]byte, size)
 	binary.Read(buffer, binary.BigEndian, &data)

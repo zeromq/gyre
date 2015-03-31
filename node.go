@@ -15,33 +15,36 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armen/goviral/zgossip"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/zeromq/gyre/beacon"
 	"github.com/zeromq/gyre/zre/msg"
 )
 
 type node struct {
-	terminated chan struct{}       // API shut us down
-	wg         sync.WaitGroup      // wait group is used to wait until actor() is done
-	events     chan *Event         // We send all Gyre events to the events channel
-	cmds       chan *cmd           // We receive commands from and send command replies and signals to the cmds channel
-	verbose    bool                // Log all traffic
-	beaconPort int                 // Beacon port number
-	interval   time.Duration       // Beacon interval
-	inboxChan  chan msg.Transit    // Channel of inbox messages
-	beacon     *beacon.Beacon      // Beacon object
-	beacons    chan *beacon.Signal // Beacons
-	uuid       []byte              // Our UUID
-	inbox      *zmq.Socket         // Our inbox socket (ROUTER)
-	name       string              // Our public name
-	endpoint   string              // Our public endpoint
-	port       uint16              // Our inbox port number
-	bound      bool                // Did app bind node explicitly?
-	status     byte                // Our own change counter
-	peers      map[string]*peer    // Hash of known peers, fast lookup
-	peerGroups map[string]*group   // Groups that our peers are in
-	ownGroups  map[string]*group   // Groups that we are in
-	headers    map[string]string   // Our header values
+	reactor       *zmq.Reactor
+	terminated    chan interface{}  // API shut us down
+	wg            sync.WaitGroup    // wait group is used to wait until actor() is done
+	events        chan *Event       // We send all Gyre events to the events channel
+	cmds          chan interface{}  // We receive commands from and send command replies and signals to the cmds channel
+	verbose       bool              // Log all traffic
+	beaconPort    int               // Beacon port number
+	interval      time.Duration     // Beacon interval
+	beacon        *beacon.Beacon    // Beacon object
+	uuid          []byte            // Our UUID
+	inbox         *zmq.Socket       // Our inbox socket (ROUTER)
+	name          string            // Our public name
+	endpoint      string            // Our public endpoint
+	port          uint16            // Our inbox port number
+	bound         bool              // Did app bind node explicitly?
+	status        byte              // Our own change counter
+	peers         map[string]*peer  // Hash of known peers, fast lookup
+	peerGroups    map[string]*group // Groups that our peers are in
+	ownGroups     map[string]*group // Groups that we are in
+	headers       map[string]string // Our header values
+	gossip        *zgossip.Zgossip  // Gossip discovery service, if any
+	gossipBind    string            // Gossip bind endpoint, if any
+	gossipConnect string            // Gossip connect endpoint, if any
 }
 
 // Beacon frame has this format:
@@ -70,17 +73,17 @@ const (
 )
 
 // newNode creates a new node.
-func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
+func newNode(events chan *Event, cmds chan interface{}) (n *node, err error) {
 	n = &node{
+		reactor:    zmq.NewReactor(),
 		events:     events,
 		cmds:       cmds,
-		inboxChan:  make(chan msg.Transit), // Shouldn't be a buffered channel because the main select acts as a lock
 		beaconPort: zreDiscoveryPort,
 		peers:      make(map[string]*peer),
 		peerGroups: make(map[string]*group),
 		ownGroups:  make(map[string]*group),
 		headers:    make(map[string]string),
-		terminated: make(chan struct{}),
+		terminated: make(chan interface{}),
 	}
 
 	n.beacon = beacon.New()
@@ -107,23 +110,22 @@ func newNode(events chan *Event, cmds chan *cmd) (n *node, err error) {
 	return
 }
 
-// Bind node to endpoint.
-func (n *node) bind(endpoint string) (err error) {
+// If we haven't already set-up the gossip network, do so
+func (n *node) gossipStart() (err error) {
 
-	err = n.inbox.Bind(endpoint)
-	if err != nil {
-		return
+	n.beaconPort = 0 // Disable UDP beaconing
+	if n.gossip == nil {
+		n.gossip, err = zgossip.New(n.identity())
+		if err != nil {
+			return
+		}
+
+		if n.verbose {
+			n.gossip.SendCmd("VERBOSE", nil, 100*time.Millisecond)
+		}
 	}
 
-	n.bound = true
-	n.beaconPort = 0
-
-	return
-}
-
-// Connect node to endpoint explicitly.
-func (n *node) connect(endpoint string) (err error) {
-	return
+	return err
 }
 
 // Start node, return nil if OK, error if not possible
@@ -133,21 +135,14 @@ func (n *node) start() (err error) {
 	// on all available network interfaces. This is orthogonal to
 	// beaconing, since we can connect to other peers and they will
 	// gossip our endpoint to others.
-
 	if !n.bound {
-		for i := dynPortFrom; i <= dynPortTo; i++ {
-			rand.Seed(time.Now().UTC().UnixNano())
-			port := uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
-			err = n.inbox.Bind(fmt.Sprintf("tcp://*:%d", port))
-			if err == nil {
-				n.port = port
-				n.bound = true
-				break
-			} else {
-				return err
-			}
+		n.port, err = n.bindEphemeral(n.inbox)
+		if err != nil {
+			return err
 		}
+		n.bound = true
 	}
+
 	// Start UDP beaconing, if the application didn't disable it
 	if n.beaconPort > 0 {
 
@@ -164,9 +159,6 @@ func (n *node) start() (err error) {
 		binary.Write(buffer, binary.BigEndian, b.Version)
 		binary.Write(buffer, binary.BigEndian, b.UUID)
 		binary.Write(buffer, binary.BigEndian, b.Port)
-
-		// Create a beacon
-		n.beacons = n.beacon.Signals()
 
 		if n.interval > 0 {
 			n.beacon.SetInterval(n.interval)
@@ -190,6 +182,12 @@ func (n *node) start() (err error) {
 		} else {
 			n.endpoint = fmt.Sprintf("tcp://%s:%d", ip.String(), n.port)
 		}
+
+		n.reactor.AddChannel(n.beacon.Signals(), 1, func(s interface{}) error {
+			n.recvFromBeacon(s.(*beacon.Signal))
+			return nil
+		})
+
 	} else if n.endpoint == "" {
 
 		hostname, err := os.Hostname()
@@ -197,10 +195,19 @@ func (n *node) start() (err error) {
 			return err
 		}
 		n.endpoint = fmt.Sprintf("tcp://%s:%d", hostname, n.port)
-	}
 
-	// Start polling on inbox
-	go n.pollInbox()
+		if n.gossip == nil {
+			return errors.New("Gossip engine hasn't been started yet, use SetEndpoint, GossipBind or GossipConnect")
+		}
+
+		n.gossip.SendCmd("PUBLISH", map[string]string{n.identity(): n.endpoint}, 100*time.Millisecond)
+
+		// Start polling on zgossip
+		n.reactor.AddChannel(n.gossip.Resp(), 1, func(r interface{}) error {
+			n.recvFromGossip(r)
+			return nil
+		})
+	}
 
 	return
 }
@@ -209,7 +216,7 @@ func (n *node) start() (err error) {
 func (n *node) stop() {
 
 	if n.beacon != nil {
-		//  Stop broadcast/listen beacon
+		// Stop broadcast/listen beacon
 		b := &aBeacon{}
 		b.Protocol[0] = 'Z'
 		b.Protocol[1] = 'R'
@@ -239,6 +246,12 @@ func (n *node) recvFromAPI(c *cmd) {
 	}
 
 	switch c.cmd {
+	case cmdUUID:
+		n.cmds <- &cmd{payload: n.identity()}
+
+	case cmdName:
+		n.cmds <- &cmd{payload: n.name}
+
 	case cmdSetName:
 		n.name = c.payload.(string)
 
@@ -247,6 +260,7 @@ func (n *node) recvFromAPI(c *cmd) {
 
 	case cmdSetVerbose:
 		n.verbose = c.payload.(bool)
+		// n.reactor.SetVerbose(n.verbose)
 
 	case cmdSetPort:
 		n.beaconPort = c.payload.(int)
@@ -257,38 +271,43 @@ func (n *node) recvFromAPI(c *cmd) {
 	case cmdSetIface:
 		n.beacon.SetInterface(c.payload.(string))
 
-	case cmdUUID:
-		n.cmds <- &cmd{payload: n.identity()}
-
-	case cmdName:
-		n.cmds <- &cmd{payload: n.name}
-
-	case cmdAddr:
-		n.cmds <- &cmd{payload: n.beacon.Addr()}
-
-	case cmdHeader:
-		header, ok := n.headers[c.key]
-
-		var err error
-		if !ok {
-			err = errors.New("Header doesn't exist")
+	case cmdSetEndpoint:
+		err := n.gossipStart()
+		if err != nil {
+			// Signal the caller and send back the error if any
+			n.cmds <- &cmd{payload: err}
+			break
 		}
 
-		n.cmds <- &cmd{err: err, payload: header}
+		n.endpoint = c.payload.(string)
+		err = n.inbox.Bind(n.endpoint)
+		if err == nil {
+			n.bound = true
+			n.beaconPort = 0
+		}
 
-	case cmdHeaders:
-		n.cmds <- &cmd{payload: n.headers}
-
-	case cmdBind:
-		endpoint := c.payload.(string)
-		err := n.bind(endpoint)
-		// Signal the caller and send back the error if any
 		n.cmds <- &cmd{payload: err}
 
-	case cmdConnect:
+	case cmdGossipBind:
+		err := n.gossipStart()
+		if err != nil {
+			n.cmds <- &cmd{payload: err}
+			break
+		}
+
 		endpoint := c.payload.(string)
-		err := n.connect(endpoint)
-		// Signal the caller and send back the error if any
+		err = n.gossip.SendCmd("BIND", endpoint, 5*time.Second)
+		n.cmds <- &cmd{payload: err}
+
+	case cmdGossipConnect:
+		err := n.gossipStart()
+		if err != nil {
+			n.cmds <- &cmd{payload: err}
+			break
+		}
+
+		endpoint := c.payload.(string)
+		err = n.gossip.SendCmd("CONNECT", endpoint, 5*time.Second)
 		n.cmds <- &cmd{payload: err}
 
 	case cmdStart:
@@ -368,6 +387,30 @@ func (n *node) recvFromAPI(c *cmd) {
 			delete(n.ownGroups, group)
 		}
 
+	case cmdDump:
+		// TODO: implement DUMP
+
+	// Deprecated
+	case cmdAddr:
+		if n.beaconPort > 0 {
+			n.cmds <- &cmd{payload: n.beacon.Addr()}
+		} else {
+			n.cmds <- &cmd{payload: n.endpoint}
+		}
+
+	case cmdHeader:
+		header, ok := n.headers[c.key]
+
+		var err error
+		if !ok {
+			err = errors.New("Header doesn't exist")
+		}
+
+		n.cmds <- &cmd{err: err, payload: header}
+
+	case cmdHeaders:
+		n.cmds <- &cmd{payload: n.headers}
+
 	default:
 		panic(fmt.Sprintf("Invalid command %q %#v", c.cmd, c))
 	}
@@ -421,10 +464,12 @@ func (n *node) removePeer(peer *peer) {
 	}
 
 	// Tell the calling application the peer has gone
-	n.events <- &Event{
-		eventType: EventExit,
-		sender:    peer.identity,
-		name:      peer.name,
+	select {
+	case n.events <- &Event{eventType: EventExit, sender: peer.identity, name: peer.name}:
+	default:
+		if n.verbose {
+			log.Printf("[%s] Dropping event: %s", n.name, EventExit)
+		}
 	}
 	// TODO(armen): Send a log event
 
@@ -457,11 +502,12 @@ func (n *node) joinPeerGroup(peer *peer, name string) *group {
 	group.join(peer)
 
 	// Now tell the caller about the peer joined group
-	n.events <- &Event{
-		eventType: EventJoin,
-		sender:    peer.identity,
-		name:      peer.name,
-		group:     name,
+	select {
+	case n.events <- &Event{eventType: EventJoin, sender: peer.identity, name: peer.name, group: name}:
+	default:
+		if n.verbose {
+			log.Printf("[%s] Dropping event: %s", n.name, EventJoin)
+		}
 	}
 
 	return group
@@ -473,11 +519,12 @@ func (n *node) leavePeerGroup(peer *peer, name string) *group {
 	group.leave(peer)
 
 	// Now tell the caller about the peer left group
-	n.events <- &Event{
-		eventType: EventLeave,
-		sender:    peer.identity,
-		name:      peer.name,
-		group:     name,
+	select {
+	case n.events <- &Event{eventType: EventLeave, sender: peer.identity, name: peer.name, group: name}:
+	default:
+		if n.verbose {
+			log.Printf("[%s] Dropping event: %s", n.name, EventLeave)
+		}
 	}
 
 	return group
@@ -566,7 +613,13 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 			event.headers[key] = val
 		}
 
-		n.events <- event
+		select {
+		case n.events <- event:
+		default:
+			if n.verbose {
+				log.Printf("[%s] Dropping event: %s", n.name, EventEnter)
+			}
+		}
 
 		// Join peer to listed groups
 		for _, group := range m.Groups {
@@ -577,21 +630,22 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 
 	case *msg.Whisper:
 		// Pass up to caller API as WHISPER event
-		n.events <- &Event{
-			eventType: EventWhisper,
-			sender:    identity,
-			name:      peer.name,
-			msg:       m.Content,
+		select {
+		case n.events <- &Event{eventType: EventWhisper, sender: identity, name: peer.name, msg: m.Content}:
+		default:
+			if n.verbose {
+				log.Printf("[%s] Dropping event: %s", n.name, EventWhisper)
+			}
 		}
 
 	case *msg.Shout:
 		// Pass up to caller as SHOUT event
-		n.events <- &Event{
-			eventType: EventShout,
-			sender:    identity,
-			name:      peer.name,
-			group:     m.Group,
-			msg:       m.Content,
+		select {
+		case n.events <- &Event{eventType: EventShout, sender: identity, name: peer.name, group: m.Group, msg: m.Content}:
+		default:
+			if n.verbose {
+				log.Printf("[%s] Dropping event: %s", n.name, EventShout)
+			}
 		}
 
 	case *msg.Ping:
@@ -660,6 +714,27 @@ func (n *node) recvFromBeacon(s *beacon.Signal) {
 	}
 }
 
+// recvFromGossip handles a new response received from gossip
+func (n *node) recvFromGossip(r interface{}) {
+
+	resp := r.(*zgossip.Resp)
+
+	if n.verbose {
+		log.Printf("[%s] recvFromGossip: %#v", n.name, resp.Payload.(map[string]string))
+	}
+
+	for identity, endpoint := range resp.Payload.(map[string]string) {
+		if endpoint != n.endpoint {
+			peer, err := n.requirePeer(identity, endpoint)
+			if err == nil {
+				peer.refresh()
+			} else if n.verbose {
+				log.Printf("[%s] %s", n.name, err)
+			}
+		}
+	}
+}
+
 // We do this once a second:
 // - if peer has gone quiet, send TCP ping
 // - if peer has disappeared, expire it
@@ -667,10 +742,10 @@ func (n *node) pingPeer(peer *peer) {
 	if time.Now().Unix() >= peer.expiredAt.Unix() {
 		n.removePeer(peer)
 	} else if time.Now().Unix() >= peer.evasiveAt.Unix() {
-		//  If peer is being evasive, force a TCP ping.
-		//  TODO(armen): do this only once for a peer in this state;
-		//  it would be nicer to use a proper state machine
-		//  for peer management.
+		// If peer is being evasive, force a TCP ping.
+		// TODO(armen): do this only once for a peer in this state;
+		// it would be nicer to use a proper state machine
+		// for peer management.
 		m := msg.NewPing()
 		peer.send(m)
 	}
@@ -696,86 +771,57 @@ func (n *node) actor() {
 		n.wg.Done()
 	}()
 
-	optMx.Lock()
-	ping := time.After(reapInterval)
-	optMx.Unlock()
+	// Handle terminate signal
+	n.reactor.AddChannel(n.terminated, 1, func(interface{}) error {
+		// Quiting
+		n.stop()
+		n.terminate()
 
-	for {
-		select {
-		case <-n.terminated:
-			// Quiting
-			n.stop()
-			n.terminate()
-			return
+		return errors.New("terminate")
+	})
 
-		case c := <-n.cmds:
-			// Received a command from the caller/API
-			n.recvFromAPI(c)
+	// Received a command from the caller/API
+	n.reactor.AddChannel(n.cmds, 1, func(c interface{}) error {
+		n.recvFromAPI(c.(*cmd))
+		return nil
+	})
 
-		case transit := <-n.inboxChan:
-			n.recvFromPeer(transit)
-
-		case s := <-n.beacons:
-			n.recvFromBeacon(s)
-
-		case <-ping:
-			if n.verbose && len(n.peers) == 0 {
-				log.Printf("[%s] There is no peer to ping", n.name)
+	// Handle the inbox
+	n.reactor.AddSocket(n.inbox, zmq.POLLIN, func(s zmq.State) error {
+		transit, err := msg.Recv(n.inbox)
+		if err != nil {
+			if n.verbose {
+				log.Printf("[%s] %s", n.name, err)
 			}
-			optMx.Lock()
-			ping = time.After(reapInterval)
-			optMx.Unlock()
-
-			for _, peer := range n.peers {
-				n.pingPeer(peer)
-			}
+			return nil
 		}
-	}
+		n.recvFromPeer(transit)
+
+		return nil
+	})
+
+	n.reactor.AddChannelTime(time.Tick(reapInterval), 1, func(interface{}) error {
+		if n.verbose && len(n.peers) == 0 {
+			log.Printf("[%s] There is no peer to ping", n.name)
+		}
+
+		for _, peer := range n.peers {
+			n.pingPeer(peer)
+		}
+
+		return nil
+	})
+
+	n.reactor.Run(50 * time.Millisecond)
 }
 
-// Poll from inbox and proxy it into a channel so that we can read
-// everything in one unified select
-func (n *node) pollInbox() {
-	poller := zmq.NewPoller()
-	poller.Add(n.inbox, zmq.POLLIN)
-
-	var (
-		mx         sync.Mutex // Protect terminated
-		terminated bool
-	)
-
-	// Wait for termination signal on a go routine
-	go func() {
-		select {
-		case <-n.terminated:
-			mx.Lock()
-			terminated = true
-			mx.Unlock()
-		}
-	}()
-
-	for {
-		sockets, _ := poller.Poll(250 * time.Millisecond)
-		for _, socket := range sockets {
-			switch s := socket.Socket; s {
-			case n.inbox:
-				t, err := msg.Recv(s)
-				if err != nil {
-					if n.verbose {
-						log.Printf("[%s] %s", n.name, err)
-					}
-					continue
-				}
-				n.inboxChan <- t
-			}
-		}
-
-		mx.Lock()
-		if terminated {
-			// Received a termination signal kill the go routine
-			mx.Unlock()
-			return
-		}
-		mx.Unlock()
+func (n *node) bindEphemeral(sock *zmq.Socket) (port uint16, err error) {
+	rand.Seed(time.Now().UTC().UnixNano())
+	port = uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
+	err = sock.Bind(fmt.Sprintf("tcp://*:%d", port))
+	if err != nil {
+		return 0, err
 	}
+
+	return port, nil
 }
