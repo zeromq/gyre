@@ -1,18 +1,44 @@
 package main
 
 import (
-	"github.com/zeromq/gyre"
-
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
+	"strings"
+
+	"github.com/zeromq/gyre"
 )
 
+type endpoints []string
+
+func (e *endpoints) String() string {
+	return fmt.Sprint(*e)
+}
+
+// Set is the method to set the flag value, part of the flag.Value interface.
+func (e *endpoints) Set(value string) error {
+	if len(*e) > 0 {
+		return errors.New("endpoints flag already set")
+	}
+	for _, rawurl := range strings.Split(value, ",") {
+		u, err := url.Parse(rawurl)
+		if err != nil {
+			return err
+		}
+		*e = append(*e, u.String())
+	}
+	return nil
+}
+
 var (
-	input = make(chan string)
-	name  = flag.String("name", "Gyreman", "Your name or nick name in the chat session")
+	input         = make(chan string)
+	name          = flag.String("name", "Gyreman", "Your name or nick name in the chat session")
+	gossipBind    = flag.String("gossip-bind", "", "At least one node in the cluster must bind to a well-known gossip endpoint, so other nodes can connect to it")
+	gossipConnect endpoints
 )
 
 func chat() {
@@ -21,6 +47,14 @@ func chat() {
 		log.Fatalln(err)
 	}
 	defer node.Stop()
+
+	if gossipConnect != nil {
+		for _, u := range gossipConnect {
+			node.GossipConnect(u)
+		}
+	} else if *gossipBind != "" {
+		node.GossipBind(*gossipBind)
+	}
 
 	err = node.Start()
 	if err != nil {
@@ -43,6 +77,7 @@ func chat() {
 
 func main() {
 
+	flag.Var(&gossipConnect, "gossip-connect", "A node may connect to multiple other nodes, for redundancy")
 	flag.Parse()
 
 	go chat()
