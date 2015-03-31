@@ -50,7 +50,7 @@ type Signal struct {
 
 // Beacon defines main structure of the application
 type Beacon struct {
-	signals    chan *Signal
+	signals    chan interface{}
 	ipv4Conn   *ipv4.PacketConn // UDP incoming connection for sending/receiving beacons
 	ipv6Conn   *ipv6.PacketConn // UDP incoming connection for sending/receiving beacons
 	ipv4       bool             // Whether or not connection is in ipv4 mode
@@ -72,7 +72,7 @@ type Beacon struct {
 func New() (b *Beacon) {
 
 	b = &Beacon{
-		signals:  make(chan *Signal, 50),
+		signals:  make(chan interface{}, 50),
 		interval: defaultInterval,
 	}
 
@@ -303,7 +303,7 @@ func (b *Beacon) Unsubscribe() *Beacon {
 }
 
 // Signals returns Signals channel
-func (b *Beacon) Signals() chan *Signal {
+func (b *Beacon) Signals() chan interface{} {
 	return b.signals
 }
 
