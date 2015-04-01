@@ -52,7 +52,8 @@ func chat() {
 		for _, u := range gossipConnect {
 			node.GossipConnect(u)
 		}
-	} else if *gossipBind != "" {
+	}
+	if *gossipBind != "" {
 		node.GossipBind(*gossipBind)
 	}
 
