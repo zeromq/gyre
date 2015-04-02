@@ -6,6 +6,7 @@ docker-image:
 	go build -a -ldflags '-extldflags "-lm -lstdc++ -lsodium -static"' github.com/zeromq/gyre/examples/ping 2>/dev/null
 	go build -a -ldflags '-extldflags "-lm -lstdc++ -lsodium -static"' github.com/zeromq/gyre/cmd/monitor 2>/dev/null
 	docker build -t armen/gyre .
+	zip release.zip chat ping monitor
 	rm chat ping monitor
 
 zre-msg:
