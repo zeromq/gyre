@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +113,6 @@ func newNode(events chan *Event, cmds chan interface{}) (n *node, err error) {
 
 // If we haven't already set-up the gossip network, do so
 func (n *node) gossipStart() (err error) {
-
 	n.beaconPort = 0 // Disable UDP beaconing
 	if n.gossip == nil {
 		n.gossip, err = zgossip.New(n.identity())
@@ -298,6 +298,19 @@ func (n *node) recvFromAPI(c *cmd) {
 		endpoint := c.payload.(string)
 		err = n.gossip.SendCmd("BIND", endpoint, 5*time.Second)
 		n.cmds <- &cmd{payload: err}
+
+	case cmdGossipPort:
+		err := n.gossip.SendCmd("PORT", nil, 5*time.Second)
+		if err != nil {
+			n.cmds <- &cmd{err: err}
+			break
+		}
+		port, err := n.gossip.RecvResp(5 * time.Second)
+		if err != nil {
+			n.cmds <- &cmd{err: err}
+			break
+		}
+		n.cmds <- &cmd{payload: strconv.FormatUint(uint64(port.(uint16)), 10)}
 
 	case cmdGossipConnect:
 		err := n.gossipStart()
