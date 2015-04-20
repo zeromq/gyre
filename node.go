@@ -275,7 +275,7 @@ func (n *node) recvFromAPI(c *cmd) {
 		err := n.gossipStart()
 		if err != nil {
 			// Signal the caller and send back the error if any
-			n.cmds <- &cmd{payload: err}
+			n.cmds <- &cmd{err: err}
 			break
 		}
 
@@ -286,18 +286,18 @@ func (n *node) recvFromAPI(c *cmd) {
 			n.beaconPort = 0
 		}
 
-		n.cmds <- &cmd{payload: err}
+		n.cmds <- &cmd{err: err}
 
 	case cmdGossipBind:
 		err := n.gossipStart()
 		if err != nil {
-			n.cmds <- &cmd{payload: err}
+			n.cmds <- &cmd{err: err}
 			break
 		}
 
 		endpoint := c.payload.(string)
 		err = n.gossip.SendCmd("BIND", endpoint, 5*time.Second)
-		n.cmds <- &cmd{payload: err}
+		n.cmds <- &cmd{err: err}
 
 	case cmdGossipPort:
 		err := n.gossip.SendCmd("PORT", nil, 5*time.Second)
@@ -315,13 +315,13 @@ func (n *node) recvFromAPI(c *cmd) {
 	case cmdGossipConnect:
 		err := n.gossipStart()
 		if err != nil {
-			n.cmds <- &cmd{payload: err}
+			n.cmds <- &cmd{err: err}
 			break
 		}
 
 		endpoint := c.payload.(string)
 		err = n.gossip.SendCmd("CONNECT", endpoint, 5*time.Second)
-		n.cmds <- &cmd{payload: err}
+		n.cmds <- &cmd{err: err}
 
 	case cmdStart:
 		err := n.start()

@@ -317,8 +317,8 @@ func (g *Gyre) SetEndpoint(endpoint string) *Gyre {
 	select {
 	case c := <-g.cmds:
 		out := c.(*cmd)
-		if out.payload != nil {
-			log.Fatal(out.payload.(error))
+		if out.err != nil {
+			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
 		log.Fatal("Node is not responding")
@@ -342,8 +342,8 @@ func (g *Gyre) GossipBind(endpoint string) *Gyre {
 	select {
 	case c := <-g.cmds:
 		out := c.(*cmd)
-		if out.payload != nil {
-			log.Fatal(out.payload.(error))
+		if out.err != nil {
+			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
 		log.Fatal("Node is not responding")
@@ -386,8 +386,8 @@ func (g *Gyre) GossipConnect(endpoint string) *Gyre {
 	select {
 	case c := <-g.cmds:
 		out := c.(*cmd)
-		if out.payload != nil {
-			log.Fatal(out.payload.(error))
+		if out.err != nil {
+			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
 		log.Fatal("Node is not responding")
