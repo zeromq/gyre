@@ -27,7 +27,8 @@ type node struct {
 	terminated    chan interface{}  // API shut us down
 	wg            sync.WaitGroup    // wait group is used to wait until actor() is done
 	events        chan *Event       // We send all Gyre events to the events channel
-	cmds          chan interface{}  // We receive commands from and send command replies and signals to the cmds channel
+	cmds          chan interface{}  // Receive commands from the cmds channel
+	replies       chan interface{}  // Send command replies to the replies channel
 	verbose       bool              // Log all traffic
 	beaconPort    int               // Beacon port number
 	interval      time.Duration     // Beacon interval
@@ -74,11 +75,12 @@ const (
 )
 
 // newNode creates a new node.
-func newNode(events chan *Event, cmds chan interface{}) (n *node, err error) {
+func newNode(events chan *Event, cmds chan interface{}, replies chan interface{}) (n *node, err error) {
 	n = &node{
 		reactor:    zmq.NewReactor(),
 		events:     events,
 		cmds:       cmds,
+		replies:    replies,
 		beaconPort: zreDiscoveryPort,
 		peers:      make(map[string]*peer),
 		peerGroups: make(map[string]*group),
@@ -247,10 +249,10 @@ func (n *node) recvFromAPI(c *cmd) {
 
 	switch c.cmd {
 	case cmdUUID:
-		n.cmds <- &cmd{payload: n.identity()}
+		n.replies <- &reply{cmd: cmdUUID, payload: n.identity()}
 
 	case cmdName:
-		n.cmds <- &cmd{payload: n.name}
+		n.replies <- &reply{cmd: cmdName, payload: n.name}
 
 	case cmdSetName:
 		n.name = c.payload.(string)
@@ -275,7 +277,7 @@ func (n *node) recvFromAPI(c *cmd) {
 		err := n.gossipStart()
 		if err != nil {
 			// Signal the caller and send back the error if any
-			n.cmds <- &cmd{err: err}
+			n.replies <- &reply{cmd: cmdSetEndpoint, err: err}
 			break
 		}
 
@@ -286,47 +288,47 @@ func (n *node) recvFromAPI(c *cmd) {
 			n.beaconPort = 0
 		}
 
-		n.cmds <- &cmd{err: err}
+		n.replies <- &reply{cmd: cmdSetEndpoint, err: err}
 
 	case cmdGossipBind:
 		err := n.gossipStart()
 		if err != nil {
-			n.cmds <- &cmd{err: err}
+			n.replies <- &reply{cmd: cmdGossipBind, err: err}
 			break
 		}
 
 		endpoint := c.payload.(string)
 		err = n.gossip.SendCmd("BIND", endpoint, 5*time.Second)
-		n.cmds <- &cmd{err: err}
+		n.replies <- &reply{cmd: cmdGossipBind, err: err}
 
 	case cmdGossipPort:
 		err := n.gossip.SendCmd("PORT", nil, 5*time.Second)
 		if err != nil {
-			n.cmds <- &cmd{err: err}
+			n.replies <- &reply{cmd: cmdGossipPort, err: err}
 			break
 		}
 		port, err := n.gossip.RecvResp(5 * time.Second)
 		if err != nil {
-			n.cmds <- &cmd{err: err}
+			n.replies <- &reply{cmd: cmdGossipPort, err: err}
 			break
 		}
-		n.cmds <- &cmd{payload: strconv.FormatUint(uint64(port.(uint16)), 10)}
+		n.replies <- &reply{cmd: cmdGossipPort, payload: strconv.FormatUint(uint64(port.(uint16)), 10)}
 
 	case cmdGossipConnect:
 		err := n.gossipStart()
 		if err != nil {
-			n.cmds <- &cmd{err: err}
+			n.replies <- &reply{cmd: cmdGossipConnect, err: err}
 			break
 		}
 
 		endpoint := c.payload.(string)
 		err = n.gossip.SendCmd("CONNECT", endpoint, 5*time.Second)
-		n.cmds <- &cmd{err: err}
+		n.replies <- &reply{cmd: cmdGossipConnect, err: err}
 
 	case cmdStart:
 		err := n.start()
 		// Signal the caller and send back the error if any
-		n.cmds <- &cmd{err: err}
+		n.replies <- &reply{cmd: cmdStart, err: err}
 
 	case cmdStop, cmdTerm:
 		if n.terminated != nil {
@@ -338,7 +340,7 @@ func (n *node) recvFromAPI(c *cmd) {
 		go func() {
 			n.wg.Wait()
 			// Signal the caller
-			n.cmds <- &cmd{}
+			n.replies <- &reply{}
 		}()
 
 	case cmdWhisper:
@@ -406,9 +408,9 @@ func (n *node) recvFromAPI(c *cmd) {
 	// Deprecated
 	case cmdAddr:
 		if n.beaconPort > 0 {
-			n.cmds <- &cmd{payload: n.beacon.Addr()}
+			n.replies <- &reply{cmd: cmdAddr, payload: n.beacon.Addr()}
 		} else {
-			n.cmds <- &cmd{payload: n.endpoint}
+			n.replies <- &reply{cmd: cmdAddr, payload: n.endpoint}
 		}
 
 	case cmdHeader:
@@ -419,10 +421,10 @@ func (n *node) recvFromAPI(c *cmd) {
 			err = errors.New("Header doesn't exist")
 		}
 
-		n.cmds <- &cmd{err: err, payload: header}
+		n.replies <- &reply{cmd: cmdHeader, err: err, payload: header}
 
 	case cmdHeaders:
-		n.cmds <- &cmd{payload: n.headers}
+		n.replies <- &reply{cmd: cmdHeader, payload: n.headers}
 
 	default:
 		panic(fmt.Sprintf("Invalid command %q %#v", c.cmd, c))
