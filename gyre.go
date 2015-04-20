@@ -44,6 +44,7 @@ const (
 	cmdSetIface      = "SET INTERFACE"
 	cmdSetEndpoint   = "SET ENDPOINT"
 	cmdGossipBind    = "GOSSIP BIND"
+	cmdGossipPort    = "GOSSIP PORT"
 	cmdGossipConnect = "GOSSIP CONNECT"
 	cmdStart         = "START"
 	cmdStop          = "STOP"
@@ -349,6 +350,28 @@ func (g *Gyre) GossipBind(endpoint string) *Gyre {
 	}
 
 	return g
+}
+
+// GossipPort returns the port number that gossip engine is bound to
+func (g *Gyre) GossipPort() string {
+	select {
+	case g.cmds <- &cmd{cmd: cmdGossipPort}:
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	select {
+	case c := <-g.cmds:
+		out := c.(*cmd)
+		if out.err != nil {
+			log.Fatal(out.err)
+		}
+		return out.payload.(string)
+	case <-time.After(timeout):
+		log.Fatal("Node is not responding")
+	}
+
+	return ""
 }
 
 // GossipConnect Sets up gossip discovery of other nodes. A node may connect
