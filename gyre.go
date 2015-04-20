@@ -106,7 +106,7 @@ func (g *Gyre) UUID() (uuid string) {
 	select {
 	case g.cmds <- &cmd{cmd: cmdUUID}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdUUID)
 	}
 
 	select {
@@ -116,7 +116,7 @@ func (g *Gyre) UUID() (uuid string) {
 			g.uuid = uuid
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdUUID)
 	}
 
 	return g.uuid
@@ -132,7 +132,7 @@ func (g *Gyre) Name() (name string) {
 	select {
 	case g.cmds <- &cmd{cmd: cmdName}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdName)
 	}
 
 	select {
@@ -142,7 +142,7 @@ func (g *Gyre) Name() (name string) {
 			g.name = name
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdName)
 	}
 
 	return g.name
@@ -158,7 +158,7 @@ func (g *Gyre) Addr() string {
 	select {
 	case g.cmds <- &cmd{cmd: cmdAddr}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdAddr)
 	}
 
 	select {
@@ -168,7 +168,7 @@ func (g *Gyre) Addr() string {
 			g.addr = addr
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdAddr)
 	}
 
 	return g.addr
@@ -184,7 +184,7 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	select {
 	case g.cmds <- &cmd{cmd: cmdHeader, key: key}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetHeader)
 	}
 
 	select {
@@ -197,7 +197,7 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 		header, ok = out.payload.(string)
 		g.headers[key] = header
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetHeader)
 	}
 
 	return header, ok
@@ -209,7 +209,7 @@ func (g *Gyre) Headers() map[string]string {
 	select {
 	case g.cmds <- &cmd{cmd: cmdHeaders}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdHeaders)
 	}
 
 	select {
@@ -219,7 +219,7 @@ func (g *Gyre) Headers() map[string]string {
 			return headers
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdHeaders)
 	}
 
 	return nil
@@ -232,7 +232,7 @@ func (g *Gyre) SetName(name string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetName, payload: name}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetName)
 	}
 
 	return g
@@ -246,7 +246,7 @@ func (g *Gyre) SetHeader(name string, format string, args ...interface{}) *Gyre 
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetHeader, key: name, payload: payload}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetHeader)
 	}
 
 	return g
@@ -259,7 +259,7 @@ func (g *Gyre) SetVerbose() *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetVerbose, payload: true}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetVerbose)
 	}
 
 	return g
@@ -273,7 +273,7 @@ func (g *Gyre) SetPort(port int) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetPort, payload: port}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetPort)
 	}
 
 	return g
@@ -286,7 +286,7 @@ func (g *Gyre) SetInterval(interval time.Duration) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetInterval, payload: interval}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetInterval)
 	}
 
 	return g
@@ -300,7 +300,7 @@ func (g *Gyre) SetInterface(iface string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetIface, payload: iface}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetIface)
 	}
 
 	return g
@@ -318,7 +318,7 @@ func (g *Gyre) SetEndpoint(endpoint string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdSetEndpoint, payload: endpoint}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetEndpoint)
 	}
 
 	select {
@@ -328,7 +328,7 @@ func (g *Gyre) SetEndpoint(endpoint string) *Gyre {
 			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdSetEndpoint)
 	}
 
 	return g
@@ -343,7 +343,7 @@ func (g *Gyre) GossipBind(endpoint string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdGossipBind, payload: endpoint}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipBind)
 	}
 
 	select {
@@ -353,7 +353,7 @@ func (g *Gyre) GossipBind(endpoint string) *Gyre {
 			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipBind)
 	}
 
 	return g
@@ -364,7 +364,7 @@ func (g *Gyre) GossipPort() string {
 	select {
 	case g.cmds <- &cmd{cmd: cmdGossipPort}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipPort)
 	}
 
 	select {
@@ -375,7 +375,7 @@ func (g *Gyre) GossipPort() string {
 		}
 		return out.payload.(string)
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipPort)
 	}
 
 	return ""
@@ -387,7 +387,7 @@ func (g *Gyre) GossipConnect(endpoint string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdGossipConnect, payload: endpoint}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipConnect)
 	}
 
 	select {
@@ -397,7 +397,7 @@ func (g *Gyre) GossipConnect(endpoint string) *Gyre {
 			log.Fatal(out.err)
 		}
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdGossipConnect)
 	}
 
 	return g
@@ -410,7 +410,7 @@ func (g *Gyre) Start() (err error) {
 	select {
 	case g.cmds <- &cmd{cmd: cmdStart}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdStart)
 	}
 
 	select {
@@ -434,7 +434,7 @@ func (g *Gyre) Stop() {
 	select {
 	case g.cmds <- &cmd{cmd: cmdStop}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdStop)
 	}
 
 	select {
@@ -450,7 +450,7 @@ func (g *Gyre) Join(group string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdJoin, key: group}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdJoin)
 	}
 	return g
 }
@@ -460,7 +460,7 @@ func (g *Gyre) Leave(group string) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdLeave, key: group}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdLeave)
 	}
 	return g
 }
@@ -476,7 +476,7 @@ func (g *Gyre) Whisper(peer string, payload []byte) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdWhisper, key: peer, payload: payload}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdWhisper)
 	}
 	return g
 }
@@ -486,7 +486,7 @@ func (g *Gyre) Shout(group string, payload []byte) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdShout, key: group, payload: payload}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdShout)
 	}
 	return g
 }
@@ -497,7 +497,7 @@ func (g *Gyre) Whispers(peer string, format string, args ...interface{}) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdWhisper, key: peer, payload: []byte(payload)}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdWhisper)
 	}
 	return g
 }
@@ -508,7 +508,7 @@ func (g *Gyre) Shouts(group string, format string, args ...interface{}) *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdShout, key: group, payload: []byte(payload)}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdShout)
 	}
 	return g
 }
@@ -518,7 +518,7 @@ func (g *Gyre) Dump() *Gyre {
 	select {
 	case g.cmds <- &cmd{cmd: cmdDump}:
 	case <-time.After(timeout):
-		log.Fatal("Node is not responding")
+		log.Fatalf("Node is not responding to %s command", cmdDump)
 	}
 	return g
 }
