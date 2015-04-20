@@ -19,6 +19,7 @@ const (
 // Gyre structure
 type Gyre struct {
 	cmds    chan interface{}
+	replies chan interface{}
 	events  chan *Event       // Receives incoming cluster events/traffic
 	uuid    string            // Copy of our uuid
 	name    string            // Copy of our name
@@ -30,7 +31,12 @@ type cmd struct {
 	cmd     string
 	key     string
 	payload interface{}
-	err     error // Only on the return
+}
+
+type reply struct {
+	cmd     string
+	payload interface{}
+	err     error
 }
 
 const (
@@ -77,10 +83,11 @@ func newGyre() (*Gyre, *node, error) {
 		// the system which isn't desired.
 		events:  make(chan *Event, 10000), // Do not block on sending events
 		cmds:    make(chan interface{}),   // Shouldn't be a buffered channel because the main select acts as a lock
+		replies: make(chan interface{}),
 		headers: make(map[string]string),
 	}
 
-	n, err := newNode(g.events, g.cmds)
+	n, err := newNode(g.events, g.cmds, g.replies)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,8 +110,8 @@ func (g *Gyre) UUID() (uuid string) {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if uuid, ok := out.payload.(string); ok {
 			g.uuid = uuid
 		}
@@ -129,8 +136,8 @@ func (g *Gyre) Name() (name string) {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if name, ok := out.payload.(string); ok {
 			g.name = name
 		}
@@ -155,8 +162,8 @@ func (g *Gyre) Addr() string {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if addr, ok := out.payload.(string); ok {
 			g.addr = addr
 		}
@@ -181,8 +188,8 @@ func (g *Gyre) Header(key string) (header string, ok bool) {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			return
 		}
@@ -206,8 +213,8 @@ func (g *Gyre) Headers() map[string]string {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if headers, ok := out.payload.(map[string]string); ok {
 			return headers
 		}
@@ -315,8 +322,8 @@ func (g *Gyre) SetEndpoint(endpoint string) *Gyre {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			log.Fatal(out.err)
 		}
@@ -340,8 +347,8 @@ func (g *Gyre) GossipBind(endpoint string) *Gyre {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			log.Fatal(out.err)
 		}
@@ -361,8 +368,8 @@ func (g *Gyre) GossipPort() string {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			log.Fatal(out.err)
 		}
@@ -384,8 +391,8 @@ func (g *Gyre) GossipConnect(endpoint string) *Gyre {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			log.Fatal(out.err)
 		}
@@ -407,8 +414,8 @@ func (g *Gyre) Start() (err error) {
 	}
 
 	select {
-	case c := <-g.cmds:
-		out := c.(*cmd)
+	case r := <-g.replies:
+		out := r.(*reply)
 		if out.err != nil {
 			return out.err
 		}
@@ -431,7 +438,7 @@ func (g *Gyre) Stop() {
 	}
 
 	select {
-	case <-g.cmds:
+	case <-g.replies:
 	case <-time.After(20 * time.Millisecond):
 		// Let it timeout, don't wait forever
 	}
