@@ -47,6 +47,7 @@ type node struct {
 	gossip        *zgossip.Zgossip  // Gossip discovery service, if any
 	gossipBind    string            // Gossip bind endpoint, if any
 	gossipConnect string            // Gossip connect endpoint, if any
+	pingID        uint64
 }
 
 // Beacon frame has this format:
@@ -268,7 +269,16 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.beaconPort = c.payload.(int)
 
 	case cmdSetInterval:
-		n.interval = c.payload.(time.Duration)
+		// Set beacon interval and peer's ping interval
+		i := c.payload.(time.Duration)
+		n.interval = i
+		SetPingInterval(i)
+
+		n.reactor.RemoveChannel(n.pingID)
+		n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
+			n.ping()
+			return nil
+		})
 
 	case cmdSetIface:
 		n.beacon.SetInterface(c.payload.(string))
@@ -815,19 +825,22 @@ func (n *node) actor() {
 		return nil
 	})
 
-	n.reactor.AddChannelTime(time.Tick(reapInterval), 1, func(interface{}) error {
-		if n.verbose && len(n.peers) == 0 {
-			log.Printf("[%s] There is no peer to ping", n.name)
-		}
-
-		for _, peer := range n.peers {
-			n.pingPeer(peer)
-		}
-
+	n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
+		n.ping()
 		return nil
 	})
 
-	n.reactor.Run(50 * time.Millisecond)
+	n.reactor.Run(10 * time.Millisecond)
+}
+
+func (n *node) ping() {
+	if n.verbose && len(n.peers) == 0 {
+		log.Printf("[%s] There is no peer to ping", n.name)
+	}
+
+	for _, peer := range n.peers {
+		n.pingPeer(peer)
+	}
 }
 
 func (n *node) bindEphemeral(sock *zmq.Socket) (port uint16, err error) {
