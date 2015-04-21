@@ -47,7 +47,6 @@ type node struct {
 	gossip        *zgossip.Zgossip  // Gossip discovery service, if any
 	gossipBind    string            // Gossip bind endpoint, if any
 	gossipConnect string            // Gossip connect endpoint, if any
-	pingID        uint64
 }
 
 // Beacon frame has this format:
@@ -269,16 +268,8 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.beaconPort = c.payload.(int)
 
 	case cmdSetInterval:
-		// Set beacon interval and peer's ping interval
-		i := c.payload.(time.Duration)
-		n.interval = i
-		SetPingInterval(i)
-
-		n.reactor.RemoveChannel(n.pingID)
-		n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
-			n.ping()
-			return nil
-		})
+		// Set beacon interval
+		n.interval = c.payload.(time.Duration)
 
 	case cmdSetIface:
 		n.beacon.SetInterface(c.payload.(string))
@@ -336,6 +327,13 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.replies <- &reply{cmd: cmdGossipConnect, err: err}
 
 	case cmdStart:
+		// Add the ping ticker just right before start so that it reads the latest
+		// value of loopInterval
+		n.reactor.AddChannelTime(time.Tick(loopInterval), 1, func(interface{}) error {
+			n.ping()
+			return nil
+		})
+
 		err := n.start()
 		// Signal the caller and send back the error if any
 		n.replies <- &reply{cmd: cmdStart, err: err}
@@ -822,11 +820,6 @@ func (n *node) actor() {
 		}
 		n.recvFromPeer(transit)
 
-		return nil
-	})
-
-	n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
-		n.ping()
 		return nil
 	})
 
