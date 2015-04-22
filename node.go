@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -47,7 +48,6 @@ type node struct {
 	gossip        *zgossip.Zgossip  // Gossip discovery service, if any
 	gossipBind    string            // Gossip bind endpoint, if any
 	gossipConnect string            // Gossip connect endpoint, if any
-	pingID        uint64
 }
 
 // Beacon frame has this format:
@@ -139,7 +139,7 @@ func (n *node) start() (err error) {
 	// beaconing, since we can connect to other peers and they will
 	// gossip our endpoint to others.
 	if !n.bound {
-		n.port, err = n.bindEphemeral(n.inbox)
+		_, n.port, err = bind(n.inbox, "tcp://*:*")
 		if err != nil {
 			return err
 		}
@@ -191,13 +191,15 @@ func (n *node) start() (err error) {
 			return nil
 		})
 
-	} else if n.endpoint == "" {
+	} else {
 
-		hostname, err := os.Hostname()
-		if err != nil {
-			return err
+		if n.endpoint == "" {
+			hostname, err := os.Hostname()
+			if err != nil {
+				return err
+			}
+			n.endpoint = fmt.Sprintf("tcp://%s:%d", hostname, n.port)
 		}
-		n.endpoint = fmt.Sprintf("tcp://%s:%d", hostname, n.port)
 
 		if n.gossip == nil {
 			return errors.New("Gossip engine hasn't been started yet, use SetEndpoint, GossipBind or GossipConnect")
@@ -269,16 +271,8 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.beaconPort = c.payload.(int)
 
 	case cmdSetInterval:
-		// Set beacon interval and peer's ping interval
-		i := c.payload.(time.Duration)
-		n.interval = i
-		SetPingInterval(i)
-
-		n.reactor.RemoveChannel(n.pingID)
-		n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
-			n.ping()
-			return nil
-		})
+		// Set beacon interval
+		n.interval = c.payload.(time.Duration)
 
 	case cmdSetIface:
 		n.beacon.SetInterface(c.payload.(string))
@@ -291,14 +285,16 @@ func (n *node) recvFromAPI(c *cmd) {
 			break
 		}
 
-		n.endpoint = c.payload.(string)
-		err = n.inbox.Bind(n.endpoint)
-		if err == nil {
-			n.bound = true
-			n.beaconPort = 0
+		endpoint := c.payload.(string)
+		n.endpoint, _, err = bind(n.inbox, endpoint)
+		if err != nil {
+			n.replies <- &reply{cmd: cmdSetEndpoint, err: err}
+			break
 		}
+		n.bound = true
+		n.beaconPort = 0
 
-		n.replies <- &reply{cmd: cmdSetEndpoint, err: err}
+		n.replies <- &reply{cmd: cmdSetEndpoint}
 
 	case cmdGossipBind:
 		err := n.gossipStart()
@@ -336,6 +332,13 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.replies <- &reply{cmd: cmdGossipConnect, err: err}
 
 	case cmdStart:
+		// Add the ping ticker just right before start so that it reads the latest
+		// value of loopInterval
+		n.reactor.AddChannelTime(time.Tick(loopInterval), 1, func(interface{}) error {
+			n.ping()
+			return nil
+		})
+
 		err := n.start()
 		// Signal the caller and send back the error if any
 		n.replies <- &reply{cmd: cmdStart, err: err}
@@ -825,11 +828,6 @@ func (n *node) actor() {
 		return nil
 	})
 
-	n.pingID = n.reactor.AddChannelTime(time.Tick(pingInterval), 1, func(interface{}) error {
-		n.ping()
-		return nil
-	})
-
 	n.reactor.Run(10 * time.Millisecond)
 }
 
@@ -843,13 +841,51 @@ func (n *node) ping() {
 	}
 }
 
-func (n *node) bindEphemeral(sock *zmq.Socket) (port uint16, err error) {
-	rand.Seed(time.Now().UTC().UnixNano())
-	port = uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
-	err = sock.Bind(fmt.Sprintf("tcp://*:%d", port))
+func bind(sock *zmq.Socket, endpoint string) (string, uint16, error) {
+
+	var port uint16
+
+	e, err := url.Parse(endpoint)
 	if err != nil {
-		return 0, err
+		return endpoint, 0, err
 	}
 
-	return port, nil
+	if e.Scheme == "inproc" {
+		err = sock.Bind(endpoint)
+		return endpoint, 0, err
+	}
+	ip, p, err := net.SplitHostPort(e.Host)
+	if err != nil {
+		return endpoint, 0, err
+	}
+
+	if p == "*" {
+		for i := dynPortFrom; i <= dynPortTo; i++ {
+			rand.Seed(time.Now().UTC().UnixNano())
+			port = uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
+			endpoint = fmt.Sprintf("%s://%s:%d", e.Scheme, ip, port)
+			err = sock.Bind(endpoint)
+			if err == nil {
+				break
+			} else if err.Error() == "no sock.ch device" {
+				port = 0
+				err = fmt.Errorf("no sock.ch device: %s", endpoint)
+				break
+			} else if i-dynPortFrom > 100 {
+				err = errors.New("Unable to bind to an ephemeral port")
+				break
+			}
+		}
+
+		return endpoint, port, err
+	}
+
+	pp, err := strconv.ParseUint(p, 10, 16)
+	if err != nil {
+		return endpoint, 0, err
+	}
+	port = uint16(pp)
+	err = sock.Bind(endpoint)
+
+	return endpoint, port, err
 }

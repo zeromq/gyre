@@ -11,9 +11,9 @@ import (
 
 var (
 	optMx        sync.Mutex
-	peerEvasive  = 9 * time.Second  // peerEvasive seconds' silence is evasive
-	peerExpired  = 15 * time.Second // peerExpired seconds' silence is expired
-	pingInterval = 3 * time.Second
+	peerEvasive  = 3 * time.Second // peerEvasive seconds' silence is evasive
+	peerExpired  = 5 * time.Second // peerExpired seconds' silence is expired
+	loopInterval = 1 * time.Second
 )
 
 type peer struct {
@@ -175,10 +175,10 @@ func SetEvasive(evasive time.Duration) {
 	peerEvasive = evasive
 }
 
-// SetPingInterval sets interval of pinging other peers
-func SetPingInterval(interval time.Duration) {
+// SetLoopInterval sets interval of checking health of other peers
+func SetLoopInterval(interval time.Duration) {
 	optMx.Lock()
 	defer optMx.Unlock()
 
-	pingInterval = interval
+	loopInterval = interval
 }
