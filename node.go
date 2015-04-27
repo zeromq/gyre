@@ -578,8 +578,14 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 	peer := n.peers[identity]
 
 	if n.verbose {
-		for _, str := range strings.Split(transit.String(), "\n") {
-			if len(str) > 0 {
+		for i, str := range strings.Split(transit.String(), "\n") {
+			if len(str) <= 0 {
+				continue
+			}
+
+			if i == 0 && peer != nil {
+				log.Printf("[%s] %s %s", n.name, peer.name, str)
+			} else {
 				log.Printf("[%s] %s", n.name, str)
 			}
 		}
