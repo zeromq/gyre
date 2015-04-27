@@ -92,7 +92,9 @@ func testTwoNodes(t *testing.T, port int, wait time.Duration) {
 
 	gyre[0].Shout("GLOBAL", []byte("Hello, World!"))
 
-	if gyre[1].Addr() == "" {
+	if addr, err := gyre[1].Addr(); err != nil {
+		t.Errorf(err.Error())
+	} else if addr == "" {
 		t.Errorf("Addr() shouldn't return empty string")
 	}
 
@@ -136,8 +138,13 @@ func testSyncedHeaders(t *testing.T, n, port int, wait time.Duration) {
 	defer stopNodes(n)
 
 	for i := 0; i < n; i++ {
-		if !reflect.DeepEqual(gyre[i].Headers(), headers[i]) {
-			t.Errorf("expected %v got %v", headers[i], gyre[i].Headers())
+		h, err := gyre[i].Headers()
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		if !reflect.DeepEqual(h, headers[i]) {
+			t.Errorf("expected %v got %v", headers[i], h)
 		}
 	}
 
