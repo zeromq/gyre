@@ -418,12 +418,22 @@ func (n *node) recvFromAPI(c *cmd) {
 	case cmdDump:
 		// TODO: implement DUMP
 
-	// Deprecated
 	case cmdAddr:
 		if n.beaconPort > 0 {
 			n.replies <- &reply{cmd: cmdAddr, payload: n.beacon.Addr()}
 		} else {
-			n.replies <- &reply{cmd: cmdAddr, payload: n.endpoint}
+			u, err := url.Parse(n.endpoint)
+			if err != nil {
+				n.replies <- &reply{cmd: cmdHeader, err: err}
+				return
+			}
+			ip, _, err := net.SplitHostPort(u.Host)
+			if err != nil {
+				n.replies <- &reply{cmd: cmdHeader, err: err}
+				return
+			}
+
+			n.replies <- &reply{cmd: cmdAddr, payload: ip}
 		}
 
 	case cmdHeader:
