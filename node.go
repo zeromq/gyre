@@ -450,7 +450,7 @@ func (n *node) recvFromAPI(c *cmd) {
 		n.replies <- &reply{cmd: cmdHeader, payload: n.headers}
 
 	default:
-		panic(fmt.Sprintf("Invalid command %q %#v", c.cmd, c))
+		log.Printf("Invalid command %q %#v", c.cmd, c)
 	}
 }
 
