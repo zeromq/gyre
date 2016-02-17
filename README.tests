@@ -1,0 +1,13 @@
+If tests are failing there are couple of things you might want to check.
+
+Firstly, make sure ZSYS_INTERFACE or BEACON_INTERFACE environment variables
+are not set. They might set to incorrect value.
+
+Secondly, make sure the hostname of the machine is accessible, for instance
+if the hostname is set to "devel" then it has to be resolvable to correct ip
+address (e.g. 127.0.0.1), otherwise test nodes won't be able to connect to the
+remote nodes (which in fact for testing purposes most likely the are in local
+machine).
+
+For testing with docker you need to set BEACON_INTERFACE to the correct
+interface (e.g. docker0).

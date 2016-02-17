@@ -39,6 +39,10 @@ func launchNodes(n, port int, wait time.Duration) {
 		// gyre[i].SetVerbose()
 		// log.SetFlags(log.LstdFlags | log.Lshortfile)
 		gyre[i].SetPort(port)
+
+		// Be aware that ZSYS_INTERFACE or BEACON_INTERFACE has precedence
+		// So make sure they are not set. For testing with docker you might
+		// want to set one of those env variables to docker0
 		gyre[i].SetInterface("lo")
 
 		if port == 0 {
