@@ -35,8 +35,8 @@ func launchNodes(n, port int, wait time.Duration) {
 			log.Fatal(err)
 		}
 		// You might want to make it verbose
-		gyre[i].SetVerbose()
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
+		// gyre[i].SetVerbose()
+		// log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 		gyre[i].SetPort(port)
 
