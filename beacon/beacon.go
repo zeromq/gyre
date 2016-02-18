@@ -38,7 +38,7 @@ const (
 )
 
 var (
-	ipv4Group = "224.0.0.250"
+	ipv4Group = net.IPv4(224, 0, 0, 250)
 	ipv6Group = "ff02::fa"
 )
 
@@ -127,9 +127,12 @@ func (b *Beacon) start() (err error) {
 	for _, iface := range ifs {
 		if b.ipv4Conn != nil {
 			b.inAddr = &net.UDPAddr{
-				IP: net.ParseIP(ipv4Group),
+				IP: ipv4Group,
 			}
-			b.ipv4Conn.JoinGroup(&iface, b.inAddr)
+			err := b.ipv4Conn.JoinGroup(&iface, b.inAddr)
+			if err != nil {
+				return err
+			}
 
 			// Find IP of the interface
 			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
@@ -160,7 +163,7 @@ func (b *Beacon) start() (err error) {
 				b.outAddr = &net.UDPAddr{IP: net.IPv4allsys, Port: b.port}
 
 			default:
-				b.outAddr = &net.UDPAddr{IP: net.ParseIP(ipv4Group), Port: b.port}
+				b.outAddr = &net.UDPAddr{IP: ipv4Group, Port: b.port}
 			}
 
 			break
@@ -168,7 +171,10 @@ func (b *Beacon) start() (err error) {
 			b.inAddr = &net.UDPAddr{
 				IP: net.ParseIP(ipv6Group),
 			}
-			b.ipv6Conn.JoinGroup(&iface, b.inAddr)
+			err := b.ipv6Conn.JoinGroup(&iface, b.inAddr)
+			if err != nil {
+				return err
+			}
 
 			// Find IP of the interface
 			// TODO(armen): Let user set the ipaddress which here can be verified to be valid
@@ -379,10 +385,15 @@ func (b *Beacon) signal() {
 			}
 			if b.transmit != nil {
 				// Signal other beacons
+				var err error
 				if b.ipv4Conn != nil {
-					b.ipv4Conn.WriteTo(b.transmit, nil, b.outAddr)
+					_, err = b.ipv4Conn.WriteTo(b.transmit, nil, b.outAddr)
 				} else {
-					b.ipv6Conn.WriteTo(b.transmit, nil, b.outAddr)
+					_, err = b.ipv6Conn.WriteTo(b.transmit, nil, b.outAddr)
+				}
+
+				if err != nil {
+					panic(err)
 				}
 			}
 			b.Unlock()

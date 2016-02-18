@@ -28,10 +28,10 @@ Test the installation - You need at least version 1.2 example wont work with 1.0
     
 ### Install zeromq
 
-    curl -o /tmp/zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
+    curl -o /tmp/zeromq.tar.gz http://download.zeromq.org/zeromq-4.1.4.tar.gz
     sudo tar -C /tmp -zxvf /tmp/zeromq.tar.gz
     rm /tmp/zeromq.tar.gz
-    cd /tmp/zeromq-4.0.4
+    cd /tmp/zeromq-4.1.4
     ./autogen.sh && ./configure && make && sudo make install
     sudo ldconfig
     cd -
