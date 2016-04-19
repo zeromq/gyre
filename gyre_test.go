@@ -64,9 +64,6 @@ func launchNodes(n, port int, wait time.Duration) {
 			log.Fatal(err)
 		}
 
-		// Wait before join so that the nodes say hello
-		time.Sleep(wait)
-
 		gyre[i].Join("GLOBAL")
 	}
 
@@ -97,6 +94,20 @@ func TestSyncedHeaders(t *testing.T) {
 
 func TestSyncedHeadersWithGossipDiscovery(t *testing.T) {
 	testSyncedHeaders(t, numOfNodes, 0, 1*time.Second) // Test with gossip discovery
+}
+
+func TestJoinLeave(t *testing.T) {
+	launchNodes(2, 5660, 1*time.Second)
+	defer stopNodes(2)
+
+	go func() {
+		<-gyre[1].Events()
+	}()
+
+	select {
+	case <-gyre[0].Events():
+		gyre[0].Leave("GLOBAL")
+	}
 }
 
 func testTwoNodes(t *testing.T, port int, wait time.Duration) {
