@@ -10,89 +10,96 @@ import (
 
 type node struct {
 	val   []byte `json:"val"`
-	Props kvs    `json:"props"`
+	props *kvs   `json:"props"`
+	sync.RWMutex
 }
 
-type kvs map[string]string
+type kvs struct {
+	m map[string]string
+	sync.RWMutex
+}
 
-type subtree map[string]*node
+type subtree struct {
+	m map[string]*node
+	sync.RWMutex
+}
 
 // Map stores all the subtrees.
-type Map map[string]subtree
-
-var mx sync.RWMutex
+type Map struct {
+	m map[string]*subtree
+	sync.RWMutex
+}
 
 // New creates a new subtree hash map.
-func New() Map {
-	m := make(Map)
-	return m
+func New() *Map {
+	return &Map{m: make(map[string]*subtree)}
 }
 
 // Subtree returns specified subtree from current hash map. A subtree can be iterated like a normal Go map.
-func (m Map) Subtree(key string) subtree {
-	mx.Lock()
-	defer mx.Unlock()
+func (m *Map) Subtree(key string) *subtree {
+	m.Lock()
+	defer m.Unlock()
 
-	if s, ok := m[key]; ok && s != nil {
+	if s, ok := m.m[key]; ok && s != nil {
 		return s
 	}
-	m[key] = make(subtree)
-	return m[key]
+	m.m[key] = &subtree{m: make(map[string]*node)}
+	return m.m[key]
 }
 
 // SubtreeOk returns specified subtree from current hash map, it also returns ok flag which indicates nodes existence.
-func (m Map) SubtreeOk(key string) (s subtree, ok bool) {
-	mx.RLock()
-	defer mx.RUnlock()
+func (m *Map) SubtreeOk(key string) (s *subtree, ok bool) {
+	m.RLock()
+	defer m.RUnlock()
 
-	s, ok = m[key]
+	s, ok = m.m[key]
 	return
 }
 
 // DelSubtree deletes specified subtree from current hash map.
-func (m Map) DelSubtree(key string) Map {
-	mx.Lock()
-	defer mx.Unlock()
+func (m *Map) DelSubtree(key string) *Map {
+	m.Lock()
+	defer m.Unlock()
 
-	delete(m, key)
+	delete(m.m, key)
 	return m
 }
 
 // Node returns specified node from current subtree or it creates an empty node if node doesn't exist.
-func (s subtree) Node(key string) *node {
-	mx.Lock()
-	defer mx.Unlock()
+func (s *subtree) Node(key string) *node {
+	s.Lock()
+	defer s.Unlock()
 
-	if n, ok := s[key]; ok && n != nil {
+	if n, ok := s.m[key]; ok && n != nil {
 		return n
 	}
 
-	s[key] = &node{Props: make(map[string]string)}
-	return s[key]
+	s.m[key] = &node{props: &kvs{m: make(map[string]string)}}
+	return s.m[key]
 }
 
 // NodeOk returns specified node from current subtree, it also returns ok flag which indicates nodes existence.
-func (s subtree) NodeOk(key string) (n *node, ok bool) {
-	mx.RLock()
-	defer mx.RUnlock()
+func (s *subtree) NodeOk(key string) (n *node, ok bool) {
+	s.RLock()
+	defer s.RUnlock()
 
-	n, ok = s[key]
+	n, ok = s.m[key]
 	return
 }
 
 // DelNode deletes a node from current subtree.
-func (s subtree) DelNode(key string) subtree {
-	mx.Lock()
-	defer mx.Unlock()
+func (s *subtree) DelNode(key string) *subtree {
+	s.Lock()
+	defer s.Unlock()
 
-	delete(s, key)
+	delete(s.m, key)
 	return s
 }
 
 // SetVal sets the value of current node.
 func (n *node) SetVal(val []byte) *node {
-	mx.Lock()
-	defer mx.Unlock()
+	n.Lock()
+	defer n.Unlock()
 
 	n.val = val
 	return n
@@ -100,61 +107,70 @@ func (n *node) SetVal(val []byte) *node {
 
 // String casts val to string.
 func (n *node) String() string {
-	mx.RLock()
-	defer mx.RUnlock()
+	n.RLock()
+	defer n.RUnlock()
 
 	return string(n.val)
 }
 
 // Returns val.
 func (n *node) Val() []byte {
-	mx.RLock()
-	defer mx.RUnlock()
+	n.RLock()
+	defer n.RUnlock()
 
 	return n.val
 }
 
 // SetProps sets properties from a map
-func (n *node) SetProps(props map[string]string) kvs {
-	mx.Lock()
-	defer mx.Unlock()
+func (n *node) SetProps(props map[string]string) *kvs {
+	n.Lock()
+	defer n.Unlock()
 
 	for key, val := range props {
-		n.Props[key] = val
+		n.props.m[key] = val
 	}
-	return n.Props
+
+	return n.props
+}
+
+// Props returns properties
+func (n *node) Props() *kvs {
+	n.RLock()
+	defer n.RUnlock()
+
+	return n.props
 }
 
 // Sets a new property or replaces it with new one.
-func (kv kvs) Set(key, val string) kvs {
-	mx.Lock()
-	defer mx.Unlock()
+func (kv *kvs) Set(key, val string) *kvs {
+	kv.Lock()
+	defer kv.Unlock()
 
-	kv[key] = val
+	kv.m[key] = val
 	return kv
 }
 
 // Get returns a property.
-func (kv kvs) Get(key string) string {
-	mx.RLock()
-	defer mx.RUnlock()
+func (kv *kvs) Get(key string) string {
+	kv.RLock()
+	defer kv.RUnlock()
 
-	return kv[key]
+	return kv.m[key]
 }
 
 // GetOk returns a property and ok flag indicating if it really exists or not.
-func (kv kvs) GetOk(key string) (val string, ok bool) {
-	mx.RLock()
-	defer mx.RUnlock()
+func (kv *kvs) GetOk(key string) (val string, ok bool) {
+	kv.RLock()
+	defer kv.RUnlock()
 
-	val, ok = kv[key]
+	val, ok = kv.m[key]
 	return
 }
 
 // Deletes a property.
 func (kv kvs) Del(key string) {
-	mx.Lock()
-	defer mx.Unlock()
+	kv.Lock()
+	defer kv.Unlock()
 
-	delete(kv, key)
+	delete(kv.m, key)
 }
