@@ -641,7 +641,6 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 	case *msg.Hello:
 		// Store properties from HELLO command into peer
 		peer.name = m.Name
-		peer.status = m.Status
 
 		event := &Event{
 			eventType: EventEnter,
@@ -669,6 +668,9 @@ func (n *node) recvFromPeer(transit msg.Transit) {
 		for _, group := range m.Groups {
 			n.joinPeerGroup(peer, group)
 		}
+
+		// Now take peer's status from HELLO, after joining groups
+		peer.status = m.Status
 
 		// TODO(armen): If peer is a ZRE/LOG collector, connect to it
 

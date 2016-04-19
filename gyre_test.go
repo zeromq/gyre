@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"math/rand"
 	"reflect"
 	"strconv"
 	"testing"
@@ -24,26 +25,30 @@ var (
 func launchNodes(n, port int, wait time.Duration) {
 
 	var err error
-	id++
+
+	rand.Seed(time.Now().UTC().UnixNano())
+	id = rand.Int()
 
 	for i := 0; i < n; i++ {
 		gyre[i], nodes[i], err = newGyre()
 		if err != nil {
 			log.Fatal(err)
 		}
-		gyre[i].SetName("node" + strconv.Itoa(i))
-		gyre[i].SetHeader("X-HELLO-"+strconv.Itoa(i), "World-"+strconv.Itoa(i))
-		headers[i] = make(map[string]string)
-		headers[i]["X-HELLO-"+strconv.Itoa(i)] = "World-" + strconv.Itoa(i)
 		// You might want to make it verbose
 		// gyre[i].SetVerbose()
 		// log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 		gyre[i].SetPort(port)
 
 		// Be aware that ZSYS_INTERFACE or BEACON_INTERFACE has precedence
 		// So make sure they are not set. For testing with docker you might
 		// want to set one of those env variables to docker0
 		gyre[i].SetInterface("lo")
+
+		gyre[i].SetName("node" + strconv.Itoa(i))
+		gyre[i].SetHeader("X-HELLO-"+strconv.Itoa(i), "World-"+strconv.Itoa(i))
+		headers[i] = make(map[string]string)
+		headers[i]["X-HELLO-"+strconv.Itoa(i)] = "World-" + strconv.Itoa(i)
 
 		if port == 0 {
 			// Enable the gossip
@@ -58,6 +63,7 @@ func launchNodes(n, port int, wait time.Duration) {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		gyre[i].Join("GLOBAL")
 	}
 
@@ -68,26 +74,40 @@ func launchNodes(n, port int, wait time.Duration) {
 func stopNodes(n int) {
 	for i := 0; i < n; i++ {
 		gyre[i].Stop()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		gyre[i] = nil
 		nodes[i] = nil
 	}
 }
 
 func TestTwoNodes(t *testing.T) {
-	testTwoNodes(t, 5660, 1500*time.Millisecond)
+	testTwoNodes(t, 5660, 1*time.Second)
 }
 
 func TestTwoNodesWithGossipDiscovery(t *testing.T) {
-	testTwoNodes(t, 0, 1500*time.Millisecond) // Test with gossip discovery
+	testTwoNodes(t, 0, 1*time.Second) // Test with gossip discovery
 }
 
 func TestSyncedHeaders(t *testing.T) {
-	testSyncedHeaders(t, numOfNodes, 5660, 1500*time.Millisecond)
+	testSyncedHeaders(t, numOfNodes, 5660, 1*time.Second)
 }
 
 func TestSyncedHeadersWithGossipDiscovery(t *testing.T) {
-	testSyncedHeaders(t, numOfNodes, 0, 3000*time.Millisecond) // Test with gossip discovery
+	testSyncedHeaders(t, numOfNodes, 0, 1*time.Second) // Test with gossip discovery
+}
+
+func TestJoinLeave(t *testing.T) {
+	launchNodes(2, 5660, 1*time.Second)
+	defer stopNodes(2)
+
+	go func() {
+		<-gyre[1].Events()
+	}()
+
+	select {
+	case <-gyre[0].Events():
+		gyre[0].Leave("GLOBAL")
+	}
 }
 
 func testTwoNodes(t *testing.T, port int, wait time.Duration) {
@@ -95,6 +115,9 @@ func testTwoNodes(t *testing.T, port int, wait time.Duration) {
 	defer stopNodes(2)
 
 	gyre[0].Shout("GLOBAL", []byte("Hello, World!"))
+
+	// Give them time to receive the msg
+	time.Sleep(wait)
 
 	if addr, err := gyre[1].Addr(); err != nil {
 		t.Errorf(err.Error())
@@ -115,6 +138,8 @@ func testTwoNodes(t *testing.T, port int, wait time.Duration) {
 		t.Error("No event has been received from gyre[1]")
 	}
 
+	time.Sleep(wait)
+
 	select {
 	case event := <-gyre[1].Events():
 		if event.Type() != EventJoin {
@@ -123,6 +148,8 @@ func testTwoNodes(t *testing.T, port int, wait time.Duration) {
 	case <-time.After(1 * time.Second):
 		t.Error("No event has been received from node1")
 	}
+
+	time.Sleep(wait)
 
 	select {
 	case event := <-gyre[1].Events():

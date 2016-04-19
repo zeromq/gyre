@@ -4,15 +4,28 @@ go:
   - 1.5
   - 1.6
 
+addons:
+    hostname: test-env
+    hosts:
+        - test-env
+
 before_install:
   - sudo apt-get update -y
-  - sudo apt-get install -y curl make git libtool build-essential dh-autoreconf pkg-config mercurial dh-autoreconf
+  - sudo apt-get install -y libpgm-dev curl make git libtool automake build-essential dh-autoreconf pkg-config mercurial dh-autoreconf
 
 install:
-  - curl -o ./zeromq.tar.gz http://download.zeromq.org/zeromq-4.0.4.tar.gz
+  - git clone git://github.com/jedisct1/libsodium.git
+  - cd libsodium
+  - git checkout 0.4.5
+  - ./autogen.sh
+  - ./configure && make check
+  - sudo make install
+  - sudo ldconfig
+  - cd ..
+  - curl -o ./zeromq.tar.gz http://download.zeromq.org/zeromq-4.1.4.tar.gz
   - tar -C . -zxvf ./zeromq.tar.gz
   - rm ./zeromq.tar.gz
-  - cd zeromq-4.0.4
+  - cd zeromq-4.1.4
   - ./autogen.sh
   - ./configure
   - make
