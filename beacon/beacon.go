@@ -336,14 +336,14 @@ func (b *Beacon) listen() {
 		if b.ipv4Conn != nil {
 			var cm *ipv4.ControlMessage
 			n, cm, _, err = b.ipv4Conn.ReadFrom(buff)
-			if err != nil || n > beaconMax || n == 0 {
+			if err != nil || n > beaconMax || n == 0 || cm == nil {
 				continue
 			}
 			addr = cm.Src
 		} else {
 			var cm *ipv6.ControlMessage
 			n, cm, _, err = b.ipv6Conn.ReadFrom(buff)
-			if err != nil || n > beaconMax || n == 0 {
+			if err != nil || n > beaconMax || n == 0 || cm == nil {
 				continue
 			}
 			addr = cm.Src
