@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -81,23 +82,35 @@ func stopNodes(n int) {
 }
 
 func TestTwoNodes(t *testing.T) {
-	testTwoNodes(t, 5660, 1*time.Second)
+	port := random(5660, 15670)
+	t.Logf("using port %d", port)
+	testTwoNodes(t, port, 5*time.Second)
 }
 
 func TestTwoNodesWithGossipDiscovery(t *testing.T) {
-	testTwoNodes(t, 0, 1*time.Second) // Test with gossip discovery
+	testTwoNodes(t, 0, 5*time.Second) // Test with gossip discovery
 }
 
 func TestSyncedHeaders(t *testing.T) {
-	testSyncedHeaders(t, numOfNodes, 5660, 1*time.Second)
+	if os.Getenv("TRAVIS") == "true" {
+		t.SkipNow()
+	}
+	port := random(5660, 15670)
+	t.Logf("using port %d", port)
+	testSyncedHeaders(t, numOfNodes, port, 1*time.Second)
 }
 
 func TestSyncedHeadersWithGossipDiscovery(t *testing.T) {
+	if os.Getenv("TRAVIS") == "true" {
+		t.SkipNow()
+	}
 	testSyncedHeaders(t, numOfNodes, 0, 1*time.Second) // Test with gossip discovery
 }
 
 func TestJoinLeave(t *testing.T) {
-	launchNodes(2, 5660, 1*time.Second)
+	port := random(5660, 15670)
+	t.Logf("using port %d", port)
+	launchNodes(2, port, 1*time.Second)
 	defer stopNodes(2)
 
 	go func() {
@@ -196,4 +209,9 @@ func testSyncedHeaders(t *testing.T, n, port int, wait time.Duration) {
 			}
 		}
 	}
+}
+
+func random(min, max int) int {
+	rand.Seed(time.Now().Unix())
+	return rand.Intn(max-min) + min
 }

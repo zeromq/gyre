@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -60,9 +61,12 @@ func TestBeacon(t *testing.T) {
 	node3 := New()
 	defer node3.Close()
 
-	node1.SetPort(5670).SetInterval(50 * time.Millisecond)
-	node2.SetPort(5670).SetInterval(50 * time.Millisecond)
-	node3.SetPort(5670).SetInterval(50 * time.Millisecond)
+	port := random(5670, 15670)
+	t.Logf("using port %d", port)
+
+	node1.SetPort(port).SetInterval(50 * time.Millisecond)
+	node2.SetPort(port).SetInterval(50 * time.Millisecond)
+	node3.SetPort(port).SetInterval(50 * time.Millisecond)
 
 	node1.NoEcho()
 	node1.Subscribe([]byte("NODE"))
@@ -102,4 +106,9 @@ func TestBeacon(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+func random(min, max int) int {
+	rand.Seed(time.Now().Unix())
+	return rand.Intn(max-min) + min
 }

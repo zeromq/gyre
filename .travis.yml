@@ -1,13 +1,8 @@
+sudo: true
 language: go
 
 go:
-  - 1.5
-  - 1.6
-
-addons:
-    hostname: test-env
-    hosts:
-        - test-env
+  - "1.10"
 
 before_install:
   - sudo apt-get update -y
