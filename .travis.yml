@@ -22,7 +22,7 @@ install:
   - sudo make install
   - sudo ldconfig
   - cd ..
-  - curl -o ./zeromq.tar.gz http://download.zeromq.org/zeromq-4.1.4.tar.gz
+  - curl -L -o ./zeromq.tar.gz http://download.zeromq.org/zeromq-4.1.4.tar.gz
   - tar -C . -zxvf ./zeromq.tar.gz
   - rm ./zeromq.tar.gz
   - cd zeromq-4.1.4
