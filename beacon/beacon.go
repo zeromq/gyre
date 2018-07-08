@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"log"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -393,7 +394,9 @@ func (b *Beacon) signal() {
 				}
 
 				if err != nil {
-					panic(err)
+					// Avoid panic when doing 
+					//    root> systemctl restart network
+					log.Printf ("Ticker failed: %s\n", err)
 				}
 			}
 			b.Unlock()
