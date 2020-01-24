@@ -139,7 +139,7 @@ func (n *node) start() (err error) {
 	// beaconing, since we can connect to other peers and they will
 	// gossip our endpoint to others.
 	if !n.bound {
-		_, n.port, err = bind(n.inbox, "tcp://*:*")
+		_, n.port, err = bind(n.inbox, "tcp://*:0")
 		if err != nil {
 			return err
 		}
@@ -877,7 +877,7 @@ func bind(sock *zmq.Socket, endpoint string) (string, uint16, error) {
 		return endpoint, 0, err
 	}
 
-	if p == "*" {
+	if p == "0" {
 		for i := dynPortFrom; i <= dynPortTo; i++ {
 			rand.Seed(time.Now().UTC().UnixNano())
 			port = uint16(rand.Intn(int(dynPortTo-dynPortFrom))) + dynPortFrom
